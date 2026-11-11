@@ -5,18 +5,20 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S3 built, NOT yet tagged.** The spec gates the `s3` tag on the user running one live fetch
-(command below). After they report back: fix any field differences, tag `s3`, push, stop.
+**S3 complete** (tagged `s3`). Next: **S4** — `prompts.py` and the real `Agent` + mocked tests,
+then ask the user to run ONE live forecast on 3 questions.
 
-Live smoke command for the user:
+S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
+selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
+fee rates and categories all looked right; no field differences needed fixing.
 
-```bash
-.venv/bin/python -c "from datetime import datetime,timedelta,UTC; from forecaster import markets as m; from forecaster.config import Config; from forecaster.pipeline import select_questions as s; c=m.make_client(); n=datetime.now(UTC); [print(v, len(q:=m.fetch_open(v,400,c,n+timedelta(days=1),n+timedelta(days=60))), 'fetched,', len(k:=s(q,n,Config())), 'selected', *[f'\n   mid {x.mid:.2f}  liq {x.liquidity:>9.0f}  closes {x.close_time:%Y-%m-%d}  fee {x.fee_rate}  {x.category:10} {x.title[:60]}' for x in k[:6]]) for v in ('kalshi','polymarket')]"
-```
-
-Claude's own run on 2026-11-11: Kalshi 400 fetched / 72 selected; Polymarket 355 Yes/No
-markets out of 400 scanned / 199 selected.
-Never start a stage until the user says "next".
+**Awaiting the user's decision (for S5, do not build without a yes):** change the selection
+rule to (1) fixed quotas by time to close, about 5 / 3 / 2 of each day's 10 for 1-14 / 14-30 /
+30-60 days; (2) at most one market per event, which needs an `event_id` field on `Question`
+(both APIs return it); (3) a random pick within each band, seeded by the date. Reasons: Kalshi
+lists latest-closing markets first, so every scanned market closes about 58-60 days out; and
+several markets of one event (five buckets of one Fed decision) resolve together, which makes
+the bootstrap CI too narrow. No category is excluded up front.
 
 ## How to work here
 
@@ -225,8 +227,7 @@ the extremized training forecasts; score the next 5,000 questions with and witho
 
 ## Next steps
 
-1. Wait for the user's live-fetch result, fix differences, tag `s3`.
-2. S4: `prompts.py` (verbatim from SPEC 6.2) and the real `Agent` in `agent.py` with mocked
+1. S4: `prompts.py` (verbatim from SPEC 6.2) and the real `Agent` in `agent.py` with mocked
    tests. Confirm the web-search tool version string and the per-search price from the
    Anthropic docs; include search fees in `cost_usd`. Then ask the user to run ONE live
    forecast on 3 questions.
