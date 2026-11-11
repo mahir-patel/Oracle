@@ -5,7 +5,8 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S0 complete** (tagged `s0`). Next: **S1** — `models`, `config`, `ledger` + tests.
+**S1 complete** (tagged `s1`). Next: **S2** — `aggregate`, `calibrate`, `scoring`, `sizing`,
+FakeAgent, `pipeline`, `simulate` + tests.
 Never start a stage until the user says "next".
 
 ## How to work here
@@ -29,6 +30,23 @@ Never start a stage until the user says "next".
   never points at a module that does not exist.
 - **`spec.md` was renamed to `SPEC.md`.** It was committed in lowercase, which only matched the
   spec's name on a case-insensitive filesystem.
+
+- **Config is a frozen dataclass built by `load_config(env)`** (S1). Functions receive a
+  `Config` rather than reading globals, so tests pass their own without touching the
+  environment. Env names are `ORACLE_<FIELD>` in upper case. Beyond the spec's table it also
+  holds the selection thresholds (6.9), the calibrator gate (6.5), the refit minimum (6.12)
+  and the report/site paths, because the spec wants every setting in one place.
+- **`Forecast` has four fields beyond the spec's list** (S1): `disagreement`, `latency_s`,
+  `n_searches`, `parse_failures`. Rule 5 requires them in the ledger and the `Forecast` is
+  what gets logged.
+- **`Ledger.verify()` is stricter than the spec** (S1): besides the hash chain it requires
+  every line to be byte-for-byte canonical JSON, and rejects blank lines and a missing final
+  newline. Without that, an edit that parses to the same values would pass.
+- **`Ledger.append()` rejects NaN/Infinity** (S1), which are not valid JSON.
+- **`joined()` uses the latest resolution record** for a market if there is more than one
+  (S1), so a venue correcting a result can be appended without editing history.
+- **The chain cannot detect truncation of the newest records** (S1). Git history of
+  `data/ledger.jsonl` covers that; say so in the README's verification section (S6).
 
 ## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
@@ -69,5 +87,6 @@ None.
 
 ## Next steps
 
-1. S1: `forecaster/models.py`, `forecaster/config.py`, `forecaster/ledger.py` with tests
-   (append, verify, tamper detection, `joined()`).
+1. S2: `aggregate`, `calibrate`, `scoring`, `sizing`, `FakeAgent` (in `agent.py`), `pipeline`,
+   `simulate`, each with tests. Owed in S2 from the amendments above: verify and cite Kalshi's
+   fee schedule; per-seed simulation results; the isotonic-calibrator ablation numbers.
