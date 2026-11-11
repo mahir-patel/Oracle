@@ -222,3 +222,19 @@ def test_has_market(ledger: Ledger) -> None:
     assert ledger.has_market("sim", "m1")
     assert not ledger.has_market("kalshi", "m1")
     assert not ledger.has_market("sim", "m9")
+
+
+def test_last_hash_reads_only_the_tail_but_matches_a_full_read(ledger: Ledger) -> None:
+    for i in range(300):  # well past one 64 KiB block
+        ledger.append_forecast(make_forecast(f"m{i}"))
+        if i % 50 == 0:
+            assert ledger.last_hash() == ledger.records()[-1]["hash"]
+    assert ledger.path.stat().st_size > 2 * 65536
+    assert ledger.last_hash() == ledger.records()[-1]["hash"]
+    assert ledger.verify()
+
+
+def test_resolution_outcome_is_stored_as_an_int(ledger: Ledger) -> None:
+    rec = ledger.append_resolution("sim", "m1", True, T0)
+    assert rec["outcome"] == 1 and type(rec["outcome"]) is int
+    assert '"outcome":1' in ledger.path.read_text()

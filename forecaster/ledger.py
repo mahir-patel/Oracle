@@ -47,8 +47,24 @@ class Ledger:
             return [json.loads(line) for line in fh.read().splitlines()]
 
     def last_hash(self) -> str:
-        records = self.records()
-        return records[-1]["hash"] if records else GENESIS_HASH
+        """Hash of the newest record, read from the end of the file so that
+        appending stays cheap however long the ledger gets."""
+        if not self.path.exists():
+            return GENESIS_HASH
+        with self.path.open("rb") as fh:
+            size = fh.seek(0, 2)
+            if size == 0:
+                return GENESIS_HASH
+            tail = b""
+            pos = size
+            # Walk back in blocks until the tail holds the whole last line.
+            while pos > 0 and tail.rstrip(b"\n").count(b"\n") == 0:
+                step = min(65536, pos)
+                pos -= step
+                fh.seek(pos)
+                tail = fh.read(step) + tail
+        last_line = tail.rstrip(b"\n").split(b"\n")[-1]
+        return json.loads(last_line)["hash"]
 
     def has_market(self, venue: str, market_id: str) -> bool:
         """v1 forecasts each market once, so callers skip markets already here."""
@@ -90,7 +106,7 @@ class Ledger:
                 "type": "resolution",
                 "venue": venue,
                 "market_id": market_id,
-                "outcome": outcome,
+                "outcome": int(outcome),  # a bool would be written as true/false
                 "ts": ensure_utc(ts).isoformat(),
             }
         )
