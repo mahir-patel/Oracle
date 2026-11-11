@@ -24,6 +24,9 @@ class Question:
     category: str = "other"
     liquidity: float = 0.0  # USD
     url: str = ""
+    # Taker fee coefficient for this market (fee = rate * contracts * P * (1 - P)).
+    # None means "use the venue's default"; see sizing.py.
+    fee_rate: float | None = None
 
     def __post_init__(self) -> None:
         self.close_time = ensure_utc(self.close_time)
