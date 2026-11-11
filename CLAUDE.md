@@ -12,13 +12,13 @@ S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetch
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
 fee rates and categories all looked right; no field differences needed fixing.
 
-**Awaiting the user's decision (for S5, do not build without a yes):** change the selection
-rule to (1) fixed quotas by time to close, about 5 / 3 / 2 of each day's 10 for 1-14 / 14-30 /
-30-60 days; (2) at most one market per event, which needs an `event_id` field on `Question`
-(both APIs return it); (3) a random pick within each band, seeded by the date. Reasons: Kalshi
-lists latest-closing markets first, so every scanned market closes about 58-60 days out; and
-several markets of one event (five buckets of one Fed decision) resolve together, which makes
-the bootstrap CI too narrow. No category is excluded up front.
+**Agreed for S5 (user said yes to all three, 2026-11-11; SPEC 6.9 `pick_daily`):** (1) quotas
+by time to close, 50/30/20% of each day's picks for 1-14 / 14-30 / 30-60 days; (2) one market
+per event, via a new `Question.event_id` (Kalshi `event_ticker`, Polymarket `events[0].id`),
+also skipping events already in the ledger; (3) seeded random pick within each band, seed from
+the UTC date. No category excluded up front. Build notes: the Polymarket fixtures were trimmed
+of `events`, so re-record or add that field; `forecast` must fetch once per band because
+Kalshi lists latest-closing markets first.
 
 ## How to work here
 

@@ -81,7 +81,7 @@ oracle/
 
 ## 4. Data types (`models.py`)
 
-- **Question:** `venue` ("kalshi" | "polymarket" | "sim"), `market_id`, `title`, `rules` (full resolution text), `close_time` (UTC datetime), `yes_bid`, `yes_ask` (probability units 0–1, nullable), `category` (default "other"), `liquidity` (float, USD), `url`, `fee_rate` (nullable taker-fee coefficient for this market; None = venue default). Properties: `mid` = (bid+ask)/2; `spread` = ask−bid (None if either quote is missing). `to_dict()` writes `close_time` as ISO format.
+- **Question:** `venue` ("kalshi" | "polymarket" | "sim"), `market_id`, `title`, `rules` (full resolution text), `close_time` (UTC datetime), `yes_bid`, `yes_ask` (probability units 0–1, nullable), `category` (default "other"), `liquidity` (float, USD), `url`, `fee_rate` (nullable taker-fee coefficient for this market; None = venue default), `event_id` (the venue's event identifier, used to cap one forecast per event; empty if unknown). Properties: `mid` = (bid+ask)/2; `spread` = ask−bid (None if either quote is missing). `to_dict()` writes `close_time` as ISO format.
 - **Sample:** `persona`, `probability`, `rationale`, `base_rate` (nullable).
 - **Forecast:** `question`, `samples`, `raw_prob` (aggregate of the samples), `calibrated_prob`, `final_prob` (after market blend), `market_prob` (the mid), `created_at`, `model`, `cost_usd`, `bet` (dict).
 
@@ -215,6 +215,13 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
   - mid and spread both exist, and spread ≤ 0.10. Wide spreads eat the edge.
   - 0.03 ≤ mid ≤ 0.97. Near-certain markets have no room for edge.
 
+- `pick_daily(selected, ledger, max_n, today)` (agreed after S3; built in S5) chooses which selected markets are actually forecast. *Why:* the track record is an experiment, and its power comes from independent questions that resolve soon.
+  - **Quotas by time to close:** of `max_n`, 50% from 1–14 days, 30% from 14–30 days, 20% from 30–60 days (5 / 3 / 2 when `max_n` = 10). A band that cannot fill its quota passes the remainder to the next band, shortest first. The shares are settings in `config.py`. *Why:* Kalshi lists latest-closing markets first, so an unstratified scan only ever sees markets about 60 days out.
+  - **One market per event:** never pick two markets with the same (`venue`, `event_id`), and skip any event that already has a forecast in the ledger. `event_id` = Kalshi `event_ticker`; Polymarket `events[0].id`. *Why:* markets of one event (five buckets of one Fed decision) resolve together; counting them as separate questions makes the bootstrap CI too narrow.
+  - **Seeded random pick within each band:** shuffle with a seed derived from the UTC date, then take the quota. *Why:* a rule fixed in advance, so nobody can cherry-pick easy questions; and no bias toward the most-traded markets beyond the liquidity filter.
+  - **No category is excluded up front.** Categories are cut later, with evidence (roadmap item 5).
+  - To feed the bands, `forecast` fetches each venue once per band with that band's close-time window.
+
 ### 6.10 `simulate.py` — the offline proof
 Synthetic world, seeded:
 - true p = clip(sigmoid(N(0, 1.5)), 0.02, 0.98)
@@ -243,7 +250,7 @@ Procedure:
   - a "not financial advice" footer.
 
 ### 6.12 `cli.py` (`python -m forecaster.cli …`, plus an `oracle` console script)
-- `forecast --venue {kalshi,polymarket,both} --scan 400 --max 10`: fetch, select, skip markets already in the ledger, forecast, log. Print one line per question plus the run's spend.
+- `forecast --venue {kalshi,polymarket,both} --scan 400 --max 10`: fetch (once per close-time band), select, skip markets already in the ledger, `pick_daily` (6.9), forecast, log. Print one line per question plus the run's spend.
 - `resolve`: for unresolved ledger markets past their close time, look up the result and log it. A network error skips the market until the next run.
 - `refit`: needs at least 30 clean (post-cutoff) resolved rows. It fits alpha and w, writes `data/params.json`, and fits the gated calibrator.
 - `report`: writes `data/report.json` and `docs/index.html` and prints the markdown summary.
