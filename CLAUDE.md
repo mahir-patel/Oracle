@@ -5,8 +5,17 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S2 complete** (tagged `s2`). Next: **S3** — `markets` (Kalshi + Polymarket clients,
-resolution lookup) + fixture tests, then ask the user to run one live fetch.
+**S3 built, NOT yet tagged.** The spec gates the `s3` tag on the user running one live fetch
+(command below). After they report back: fix any field differences, tag `s3`, push, stop.
+
+Live smoke command for the user:
+
+```bash
+.venv/bin/python -c "from datetime import datetime,timedelta,UTC; from forecaster import markets as m; from forecaster.config import Config; from forecaster.pipeline import select_questions as s; c=m.make_client(); n=datetime.now(UTC); [print(v, len(q:=m.fetch_open(v,400,c,n+timedelta(days=1),n+timedelta(days=60))), 'fetched,', len(k:=s(q,n,Config())), 'selected', *[f'\n   mid {x.mid:.2f}  liq {x.liquidity:>9.0f}  closes {x.close_time:%Y-%m-%d}  fee {x.fee_rate}  {x.category:10} {x.title[:60]}' for x in k[:6]]) for v in ('kalshi','polymarket')]"
+```
+
+Claude's own run on 2026-11-11: Kalshi 400 fetched / 72 selected; Polymarket 355 Yes/No
+markets out of 400 scanned / 199 selected.
 Never start a stage until the user says "next".
 
 ## How to work here
@@ -65,6 +74,33 @@ Never start a stage until the user says "next".
 - **`Ledger.last_hash()` reads the file tail** (S2); appends were quadratic before.
 - **Not built yet, on purpose:** the pre-question budget guard (amendment 5) belongs to the
   `forecast` command and is due in S5 with `cli.py`; search-fee cost tracking is due in S4.
+
+- **`markets.py` field mappings follow live responses, not the spec's notes** (S3). Differences,
+  all recorded in SPEC 6.1:
+  - Kalshi prices are dollar strings (`yes_bid_dollars`); legacy cent fields still parse.
+  - Kalshi has no `liquidity` field. **Open interest in USD stands in for it** (the 500
+    threshold then means "at least 500 contracts outstanding"). This is a different quantity
+    from Polymarket's `liquidityNum` (resting order-book depth), so the two venues' liquidity
+    numbers are not comparable.
+  - Kalshi has no market-level `category` (it is on the event). All Kalshi questions are
+    "other" for now. Roadmap item 5 (category analysis) will need one `GET /events/{ticker}`
+    per forecast question; not built.
+  - Kalshi needs `mve_filter=exclude`, or combo markets fill the scan.
+  - Kalshi `yes_sub_title` is appended to the title in brackets when the title does not
+    contain it. Multi-outcome events can give every market the same title ("Who will the
+    next Pope be?"); the price of safety is some redundant suffixes like "[Above 24]".
+  - Polymarket pages cap at 100 (offset pagination); ordered by 24h volume, most traded first.
+  - Polymarket has no `category`; it is derived from `feeType`. Fee-free markets
+    (geopolitics) have no `feeType`, so they show as "other".
+  - Polymarket `fee_rate`: `feeSchedule.rate` when `feesEnabled` is true, 0.0 when false,
+    None (venue default 0.05) when the flag is absent. `feeSchedule.exponent` is ignored
+    (always 1 in everything seen so far).
+  - A bid of 0 or an ask of 1 means an empty side of the book and maps to None on both venues.
+- **`fetch_open` takes an optional close-time window, applied server-side** (S3).
+- **Fixtures are real recorded responses, trimmed** (S3); see `tests/fixtures/README.md`.
+  Disputed/odd cases are made inside the tests by editing a copy of a real fixture.
+- **HTTP and network errors raise `httpx.HTTPError`** from `fetch_*` and `resolve` (S3). The
+  S5 `resolve` command must catch it and skip the market until the next run.
 
 ## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
@@ -168,6 +204,10 @@ the extremized training forecasts; score the next 5,000 questions with and witho
 
 ## Known issues
 
+- **Kalshi returns the latest-closing markets first.** With a 1-60 day window and scan 400,
+  every market scanned closes about 58-60 days out, so feedback would take two months. Open
+  question for the user before S5: split the scan across close-time bands (e.g. 1-7, 7-30,
+  30-60 days) so the daily run favours markets that resolve soon?
 - Kalshi's exact fee rounding wording is unconfirmed from the PDF (see "Fee schedules").
 - Kalshi series with non-standard or zero fees are charged the standard 0.07 rate.
 
@@ -185,7 +225,8 @@ the extremized training forecasts; score the next 5,000 questions with and witho
 
 ## Next steps
 
-1. S3: `forecaster/markets.py` with recorded fixtures and `httpx.MockTransport` tests. Check
-   both venues' current API docs first and report field differences. Fill `Question.fee_rate`
-   for Polymarket from `feesEnabled` / `feeSchedule.rate`. Then ask the user to run one live
-   fetch. Retry the Kalshi fee-schedule PDF to confirm the rounding wording.
+1. Wait for the user's live-fetch result, fix differences, tag `s3`.
+2. S4: `prompts.py` (verbatim from SPEC 6.2) and the real `Agent` in `agent.py` with mocked
+   tests. Confirm the web-search tool version string and the per-search price from the
+   Anthropic docs; include search fees in `cost_usd`. Then ask the user to run ONE live
+   forecast on 3 questions.

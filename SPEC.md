@@ -119,6 +119,10 @@ Use public read-only endpoints, no keys. **Before coding, check the venues' curr
   - Keep only markets where `outcomes` (a JSON string) == `["Yes","No"]`.
   - Map: `id`; `question` → title; `description` → rules; `endDate`; `bestBid`/`bestAsk`; `liquidityNum`; `category`; url = `https://polymarket.com/market/{slug}`. `fee_rate` = `feeSchedule.rate` if `feesEnabled`, else 0 (confirm the field placement against a live response in S3).
   - Resolution: `GET /markets/{id}`. If `closed`, parse `outcomePrices` (a JSON string): if the first price > 0.99 → 1; if any price > 0.99 → 0; otherwise unresolved (disputed or unclear).
+- **Corrections from live responses (2026-11-10), which override the field notes above:**
+  - Kalshi: add `mve_filter=exclude` (multivariate combo markets otherwise fill the first pages and have no rules). Prices are dollar strings, `yes_bid_dollars` / `yes_ask_dollars`; a bid of "0.0000" or an ask of "1.0000" means that side of the book is empty (→ None). There is **no `liquidity` field**: use `open_interest_fp` × `notional_value_dollars` as the stand-in. There is **no `category` field** on a market (it lives on the event), so category is "other". If `yes_sub_title` is not already in the title, append it in square brackets. A listed open market has `status` "active"; a settled one "finalized". `GET /markets/{ticker}` wraps the market in `{"market": …}`.
+  - Polymarket: at most 100 markets per request, so paginate with `offset`. Order by `volume24hr` descending. There is **no `category` field**: derive it from `feeType` ("politics_fees" → "politics"), else "other". `feesEnabled` and `feeSchedule` are top-level.
+  - Both: the close-time window is applied server-side (`min_close_ts`/`max_close_ts` on Kalshi, `end_date_min`/`end_date_max` on Polymarket) so a scan is not wasted on markets `select_questions` would drop.
 - Expose `resolve(venue, market_id) -> int | None`.
 - Datetimes are always UTC-aware.
 - Tests: use recorded JSON fixtures and `httpx.MockTransport`. I'll run one live smoke test manually.
