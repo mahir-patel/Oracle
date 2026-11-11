@@ -30,23 +30,22 @@ Never start a stage until the user says "next".
 - **`spec.md` was renamed to `SPEC.md`.** It was committed in lowercase, which only matched the
   spec's name on a case-insensitive filesystem.
 
-## Open questions raised with the user (S0)
+## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
-Awaiting answers; none blocks S1.
-
-1. Web-search requests are billed per search on top of tokens. Cost tracking in 6.3 counts
-   tokens only, so it would understate cost (rule 5). Proposed: add a `PRICE_PER_SEARCH`
-   setting and include it. Verify the price in S4.
-2. `pnl()` in 6.6 uses "price" without saying whether it includes the fee. Proposed: the bet
-   records `price` = quote + fee (the all-in cost), so P&L is net of fees.
-3. Kalshi's fee is rounded up per order, not per contract. The per-contract rounding in 6.6
-   overstates fees on multi-contract bets (conservative). Proposed: keep it for the edge
-   test, verify the schedule in S2.
-4. The 6.10 acceptance needs the phase-2 BSS CI lower bound > 0; the prototype got +0.006,
-   which is marginal at n = 300. If seed 7 fails under this implementation's random stream,
-   report it rather than hunt for a seed.
-5. The spending cap can only be checked between questions, so a run can overshoot by up to
-   one question's cost (5 parallel samples).
+1. **Search fees count as cost.** `PRICE_PER_SEARCH` setting; `cost_usd` and the spending cap
+   include searches. The 0.01 default is a placeholder: **confirm the price from the Anthropic
+   docs in S4.**
+2. **A bet's `price` = quote + fee**, so paper P&L is net of fees.
+3. **Kalshi fee is rounded up per order**: ceil(0.07 x contracts x P x (1-P) x 100) / 100.
+   The edge check uses the per-contract cost (fee for 1 contract). **Verify against Kalshi's
+   current fee schedule in S2 and cite the source here.**
+4. **Simulation acceptance is over 5 fixed seeds (7, 8, 9, 10, 11), n = 1200 each (600/600).**
+   Pass if final < model-only < market Brier on average, and the pooled phase-2 BSS CI lower
+   bound > 0. Never hunt for a passing seed. **Report per-seed results here in S2, including
+   any seed that fails on its own.**
+5. **Budget guard.** Before each question, estimate its cost as the run's average so far
+   ($0.50 for the first, `FIRST_QUESTION_COST_ESTIMATE`) and skip it if the remaining budget
+   is smaller. Overshoot of up to one question is accepted. Log actual spend vs cap at the end.
 
 ## Findings (numbers)
 

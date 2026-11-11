@@ -49,7 +49,7 @@ You are a senior software engineer, ML engineer, data scientist and quant buildi
 3. **Append-only, hash-chained ledger.** No forecast is ever edited or deleted. *Why:* the track record is only credible if it's provably unaltered.
 4. **Every tunable number is fitted only on resolved, post-cutoff data, in chronological order.** The scores in reports always use the probability that was logged at forecast time, so they're out of sample by construction.
 5. **Measure everything:** dollar cost per forecast, parse failures, latency, and the number of web searches.
-6. **Hard spending cap per run** (`ORACLE_MAX_SPEND_PER_RUN`, default $5). Abort the run cleanly once it's reached.
+6. **Hard spending cap per run** (`ORACLE_MAX_SPEND_PER_RUN`, default $5). Abort the run cleanly once it's reached. Before each question, estimate its cost as the run's average cost per question so far ($0.50 for the first) and skip it if the remaining budget is below that estimate. Samples run in parallel, so overshooting by up to one question's cost is accepted. Log actual spend vs the cap at the end of the run.
 
 ## 3. Repo layout
 
@@ -94,6 +94,8 @@ oracle/
 | `N_SAMPLES` | 5 | One per persona; balances diversity against cost |
 | `MAX_WEB_SEARCHES` | 4 per sample | Caps cost; more searches give diminishing returns |
 | `PRICE_IN` / `PRICE_OUT` | 10 / 50 USD per M tokens | For cost tracking; update if pricing changes |
+| `PRICE_PER_SEARCH` | 0.01 USD (placeholder; confirm from the Anthropic docs in S4) | Web searches are billed per search on top of tokens; leaving them out understates cost |
+| `FIRST_QUESTION_COST_ESTIMATE` | 0.50 USD | Pre-question budget guard before the run has an average (rule 6) |
 | `TRIM_FRACTION` | 0.2 | Robust to one sample going off the rails |
 | `EXTREMIZE_ALPHA` | 1.3 (before fitting) | LLMs hedge toward 50%; replaced by the fitted value |
 | `MARKET_WEIGHT` | 0.5 (before fitting) | A neutral prior; replaced by the fitted value |
@@ -155,7 +157,7 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
 - `Agent.forecast(q, n, now) -> list[Sample]` runs n passes in parallel (thread pool, at most 5 workers).
 - Each pass calls `messages.create` with `max_tokens=4000`, the system prompt, and the server-side web search tool: `{"type": "web_search_20250305", "name": "web_search", "max_uses": MAX_WEB_SEARCHES}`. Check the current tool version string in the Anthropic docs.
 - Join the text blocks, then parse with the regex `<forecast>\s*(\{.*?\})\s*</forecast>` (DOTALL). Clamp the probability to [0.01, 0.99]. Drop a sample (return None) on a parse failure and count the failure.
-- Track cost from `usage` (input and output tokens times the prices) and add it to `agent.cost_usd`. Also log the number of searches if the usage object reports it.
+- Track cost from `usage`: input and output tokens times the prices, plus the number of web searches times `PRICE_PER_SEARCH`. Add it to `agent.cost_usd`; this total is what the spending cap is checked against. Also log the number of searches.
 - Retry API errors with exponential backoff (3 attempts). Respect the spending cap.
 - **FakeAgent(truth_fn, noise=0.5, hedge=0.7, seed)**: each sample = sigmoid(hedge·logit(truth) + N(0, noise)), clipped to [0.01, 0.99]. It has `cost_usd = 0` and `model = "fake"`. It's used by tests and the simulation.
 
@@ -171,15 +173,17 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
 - **Gated: it's the identity function below `MIN_POINTS = 1000`.** *Finding from my prototype (reproduce it in the S2 simulation):* stacked on top of the fitted extremizing alpha, isotonic calibration made out-of-sample Brier WORSE at n = 300 and 600, across 4 seeds. Two calibrators in a row overfit. Only enable it with a large history, and keep it only if the report shows it helps.
 
 ### 6.6 `sizing.py`
-- Kalshi fee per contract = ceil(0.07 · P · (1−P) · 100)/100 (verify against the current schedule). Polymarket fee = 0 (verify).
+- Kalshi fee is rounded up **per order**: `fee(contracts, P)` = ceil(0.07 · contracts · P · (1−P) · 100)/100 for the whole order. Verify against Kalshi's current fee schedule in S2 and cite the source in CLAUDE.md. Polymarket fee = 0 (verify).
+- The edge check uses the per-contract cost: quote + `fee(1, P)`. The recorded bet uses the real order fee.
 - `decide(p, bid, ask, venue)`:
   - YES costs ask + fee, with win probability p.
   - NO costs (1 − bid) + fee, with win probability 1 − p.
   - edge = win_p − cost. Pick the side with the higher edge.
   - If edge < MIN_EDGE, there's no bet; record the edge and the reason.
   - Kelly f* = (win_p − cost)/(1 − cost); stake = min(KELLY_FRACTION · f*, MAX_STAKE_FRACTION) · bankroll; contracts = int(stake / cost).
+  - The bet records `quote`, `fee` (the per-order fee for `contracts`) and `price` = quote + fee/contracts, the all-in cost per contract.
   - If there's no quote, there's no bet.
-- `pnl(bet, outcome)`: if it won, contracts · (1 − price); if it lost, −contracts · price.
+- `pnl(bet, outcome)`: if it won, contracts · (1 − price); if it lost, −contracts · price. Because `price` includes the fee, paper P&L is net of fees.
 
 ### 6.7 `ledger.py`
 - Canonical JSON: `sort_keys=True, separators=(",", ":"), default=str`. The genesis hash is 64 zeros.
@@ -213,12 +217,12 @@ Synthetic world, seeded:
 - close times are spread over the days after 2026-08-01, so everything is post-cutoff
 
 Procedure:
-1. Phase 1 (first half of n = 600): params alpha = 1, w = 0, no calibrator. Log forecasts and resolutions.
+1. Phase 1 (first half of n = 1200): params alpha = 1, w = 0, no calibrator. Log forecasts and resolutions.
 2. Fit alpha and w on phase 1.
 3. Phase 2 (second half): forecast with the fitted params.
 4. Print a report for each phase plus the ledger verification.
 
-**Acceptance:** phase-2 final Brier < phase-2 model-only Brier < market Brier, and the phase-2 BSS CI lower bound > 0. My prototype got phase-2 Brier of 0.189 for the final forecast, 0.191 for the model alone and 0.203 for the market, with BSS +0.068 (CI +0.006..+0.125). Your numbers can differ slightly; the direction must match. Also run the calibrator ablation from 6.5 and record the result in CLAUDE.md.
+**Acceptance (robust to the seed; never hunt for a passing seed):** run n = 1200 (600/600 split) for each of the 5 fixed seeds 7, 8, 9, 10, 11. Pass if, averaged across the 5 seeds, phase-2 final Brier < phase-2 model-only Brier < market Brier, and the BSS CI lower bound on the pooled phase-2 rows (all 5 seeds, 3,000 rows) is > 0. Report the per-seed results in CLAUDE.md, including any seed that fails on its own. My prototype (n = 600, one seed) got phase-2 Brier of 0.189 for the final forecast, 0.191 for the model alone and 0.203 for the market, with BSS +0.068 (CI +0.006..+0.125); that lower bound is too close to zero to rest a single-seed test on. Also run the calibrator ablation from 6.5 and record the result in CLAUDE.md.
 
 ### 6.11 `report.py`
 - `build(rows)`: counts (total/resolved/open), total cost. Then **post-cutoff resolved rows only**: Brier for final/model-only/market, log loss, bootstrap BSS, calibration table, paper P&L and number of bets. Add the contamination check over all resolved rows.
@@ -237,7 +241,7 @@ Procedure:
 - `refit`: needs at least 30 clean (post-cutoff) resolved rows. It fits alpha and w, writes `data/params.json`, and fits the gated calibrator.
 - `report`: writes `data/report.json` and `docs/index.html` and prints the markdown summary.
 - `verify`: exits 1 if the chain is broken.
-- `simulate --n 600 --seed 7`
+- `simulate --n 1200 --seed 7` (one seed; the 5-seed acceptance run lives in the test suite)
 
 ### 6.13 `.github/workflows/daily.yml`
 - Runs on a daily cron at an off-peak UTC time (avoid :00), plus `workflow_dispatch`.
@@ -251,12 +255,12 @@ Procedure:
 - `ledger`: append, verify, **tamper detection** (edit one byte, then `verify()` is False), and `joined()` correctness.
 - `aggregate`: logit/sigmoid round trip, trimmed mean ignores an outlier, extremize alpha = 1 is the identity, blend w = 0/1 edge cases, and the fit recovers a known alpha on synthetic data.
 - `calibrate`: monotone output, identity below the gate, save/load round trip.
-- `sizing`: no bet below the edge, correct side chosen, Kelly math, the cap, P&L for win/loss, Kalshi fee values at P = 0.5 and 0.1.
+- `sizing`: no bet below the edge, correct side chosen, Kelly math, the cap, P&L for win/loss net of fees, Kalshi per-order fee values at P = 0.5 and 0.1 for 1 and many contracts.
 - `scoring`: known Brier/log-loss values, BSS sign, bootstrap CI contains the point estimate, contamination flag.
 - `markets`: fixtures → Question mapping and resolution parsing for both venues, including a disputed or unresolved case.
 - `agent`: a mocked client returns canned text, and the parser handles valid, clamped and missing/garbled `<forecast>` blocks.
 - `pipeline`: an end-to-end run with FakeAgent writes a valid ledger.
-- `simulate`: the acceptance criteria in 6.10 hold (put it in a test with a fixed seed).
+- `simulate`: the acceptance criteria in 6.10 hold (a test over the 5 fixed seeds).
 
 ## 8. README (written in S6; it's an interview document)
 Sections:
