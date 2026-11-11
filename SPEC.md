@@ -81,7 +81,7 @@ oracle/
 
 ## 4. Data types (`models.py`)
 
-- **Question:** `venue` ("kalshi" | "polymarket" | "sim"), `market_id`, `title`, `rules` (full resolution text), `close_time` (UTC datetime), `yes_bid`, `yes_ask` (probability units 0–1, nullable), `category` (default "other"), `liquidity` (float, USD), `url`. Properties: `mid` = (bid+ask)/2; `spread` = ask−bid (None if either quote is missing). `to_dict()` writes `close_time` as ISO format.
+- **Question:** `venue` ("kalshi" | "polymarket" | "sim"), `market_id`, `title`, `rules` (full resolution text), `close_time` (UTC datetime), `yes_bid`, `yes_ask` (probability units 0–1, nullable), `category` (default "other"), `liquidity` (float, USD), `url`, `fee_rate` (nullable taker-fee coefficient for this market; None = venue default). Properties: `mid` = (bid+ask)/2; `spread` = ask−bid (None if either quote is missing). `to_dict()` writes `close_time` as ISO format.
 - **Sample:** `persona`, `probability`, `rationale`, `base_rate` (nullable).
 - **Forecast:** `question`, `samples`, `raw_prob` (aggregate of the samples), `calibrated_prob`, `final_prob` (after market blend), `market_prob` (the mid), `created_at`, `model`, `cost_usd`, `bet` (dict).
 
@@ -117,7 +117,7 @@ Use public read-only endpoints, no keys. **Before coding, check the venues' curr
   - Resolution: `GET /markets/{ticker}`; `result` "yes" → 1, "no" → 0, anything else → unresolved.
 - **Polymarket** `GET https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=…`
   - Keep only markets where `outcomes` (a JSON string) == `["Yes","No"]`.
-  - Map: `id`; `question` → title; `description` → rules; `endDate`; `bestBid`/`bestAsk`; `liquidityNum`; `category`; url = `https://polymarket.com/market/{slug}`.
+  - Map: `id`; `question` → title; `description` → rules; `endDate`; `bestBid`/`bestAsk`; `liquidityNum`; `category`; url = `https://polymarket.com/market/{slug}`. `fee_rate` = `feeSchedule.rate` if `feesEnabled`, else 0 (confirm the field placement against a live response in S3).
   - Resolution: `GET /markets/{id}`. If `closed`, parse `outcomePrices` (a JSON string): if the first price > 0.99 → 1; if any price > 0.99 → 0; otherwise unresolved (disputed or unclear).
 - Expose `resolve(venue, market_id) -> int | None`.
 - Datetimes are always UTC-aware.
@@ -173,7 +173,10 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
 - **Gated: it's the identity function below `MIN_POINTS = 1000`.** *Finding from my prototype (reproduce it in the S2 simulation):* stacked on top of the fitted extremizing alpha, isotonic calibration made out-of-sample Brier WORSE at n = 300 and 600, across 4 seeds. Two calibrators in a row overfit. Only enable it with a large history, and keep it only if the report shows it helps.
 
 ### 6.6 `sizing.py`
-- Kalshi fee is rounded up **per order**: `fee(contracts, P)` = ceil(0.07 · contracts · P · (1−P) · 100)/100 for the whole order. Verify against Kalshi's current fee schedule in S2 and cite the source in CLAUDE.md. Polymarket fee = 0 (verify).
+- Both venues charge takers `rate · contracts · P · (1−P)` per order, where P is the price paid per contract (verified 2026-11-10; sources in CLAUDE.md). We always cross the spread, so we are always the taker.
+  - **Kalshi:** rate 0.07 on most markets, rounded **up to the next cent per order**: ceil(0.07 · contracts · P · (1−P) · 100)/100.
+  - **Polymarket:** no longer fee-free. The rate is set per market (0 for geopolitics, 0.04–0.07 elsewhere) and comes from `Question.fee_rate`; the fee is rounded to 5 decimal places. If a market's rate is unknown, use 0.05 (the "Other / General" rate).
+  - `sim` venue: no fee.
 - The edge check uses the per-contract cost: quote + `fee(1, P)`. The recorded bet uses the real order fee.
 - `decide(p, bid, ask, venue)`:
   - YES costs ask + fee, with win probability p.
