@@ -1,0 +1,21 @@
+# secrets
+.env
+.env.*
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# data/ is committed (the ledger is the public record); only the cache is not
+data/cache/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/

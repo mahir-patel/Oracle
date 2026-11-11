@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oracle-forecaster"
+version = "0.1.0"
+description = "LLM forecasts of binary prediction-market questions with a tamper-evident track record"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic",
+    "httpx",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["forecaster"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
