@@ -16,7 +16,9 @@ fee rates and categories all looked right; no field differences needed fixing.
 by time to close, 50/30/20% of each day's picks for 1-14 / 14-30 / 30-60 days; (2) one market
 per event, via a new `Question.event_id` (Kalshi `event_ticker`, Polymarket `events[0].id`),
 also skipping events already in the ledger; (3) seeded random pick within each band, seed from
-the UTC date. No category excluded up front. Build notes: the Polymarket fixtures were trimmed
+the UTC date; (4) one fetch per venue per band. Unfilled slots from ANY band are redistributed
+to the other bands, shortest first, so the daily total is met whenever enough eligible markets
+exist. Every run logs per-band eligible / quota / picked. No category excluded up front. Build notes: the Polymarket fixtures were trimmed
 of `events`, so re-record or add that field; `forecast` must fetch once per band because
 Kalshi lists latest-closing markets first.
 

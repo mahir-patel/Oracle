@@ -215,12 +215,13 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
   - mid and spread both exist, and spread ≤ 0.10. Wide spreads eat the edge.
   - 0.03 ≤ mid ≤ 0.97. Near-certain markets have no room for edge.
 
-- `pick_daily(selected, ledger, max_n, today)` (agreed after S3; built in S5) chooses which selected markets are actually forecast. *Why:* the track record is an experiment, and its power comes from independent questions that resolve soon.
-  - **Quotas by time to close:** of `max_n`, 50% from 1–14 days, 30% from 14–30 days, 20% from 30–60 days (5 / 3 / 2 when `max_n` = 10). A band that cannot fill its quota passes the remainder to the next band, shortest first. The shares are settings in `config.py`. *Why:* Kalshi lists latest-closing markets first, so an unstratified scan only ever sees markets about 60 days out.
+- `pick_daily(selected, ledger, max_n, today)` (agreed after S3; built in S5) chooses which selected markets are actually forecast, by four rules: quotas by time to close, one market per event, a seeded random pick, and a fetch per band. *Why:* the track record is an experiment, and its power comes from independent questions that resolve soon.
+  - **Quotas by time to close:** of `max_n`, 50% from 1–14 days, 30% from 14–30 days, 20% from 30–60 days (5 / 3 / 2 when `max_n` = 10). **Redistribution:** unfilled slots from *any* band (including 30–60 days) go to the other bands that still have eligible markets, shortest band first, so the day's total is always met whenever enough eligible markets exist across all bands. The shares are settings in `config.py`. *Why:* Kalshi lists latest-closing markets first, so an unstratified scan only ever sees markets about 60 days out.
   - **One market per event:** never pick two markets with the same (`venue`, `event_id`), and skip any event that already has a forecast in the ledger. `event_id` = Kalshi `event_ticker`; Polymarket `events[0].id`. *Why:* markets of one event (five buckets of one Fed decision) resolve together; counting them as separate questions makes the bootstrap CI too narrow.
   - **Seeded random pick within each band:** shuffle with a seed derived from the UTC date, then take the quota. *Why:* a rule fixed in advance, so nobody can cherry-pick easy questions; and no bias toward the most-traded markets beyond the liquidity filter.
   - **No category is excluded up front.** Categories are cut later, with evidence (roadmap item 5).
-  - To feed the bands, `forecast` fetches each venue once per band with that band's close-time window.
+  - **Fetch per band:** `forecast` fetches each venue once per band with that band's close-time window. *Why:* with one fetch over the whole window, Kalshi's latest-first ordering would starve the short bands.
+  - **Logging:** every run prints, per band, the number eligible, the quota, and the number picked (after redistribution).
 
 ### 6.10 `simulate.py` — the offline proof
 Synthetic world, seeded:
