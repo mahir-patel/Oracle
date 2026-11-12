@@ -12,7 +12,10 @@ def test_defaults_match_spec() -> None:
     assert c.model_cutoff == datetime(2026, 7, 1, tzinfo=UTC)
     assert c.n_samples == 5
     assert c.max_web_searches == 4
-    assert (c.price_in, c.price_out) == (10.0, 50.0)
+    assert (c.price_in, c.price_out, c.price_per_search) == (8.0, 40.0, 0.01)
+    assert c.max_tokens == 4000
+    assert c.web_search_tool == "web_search_20260318"
+    assert c.search_blocked_domains == "polymarket.com,kalshi.com"
     assert c.trim_fraction == 0.2
     assert c.extremize_alpha == 1.3
     assert c.market_weight == 0.5

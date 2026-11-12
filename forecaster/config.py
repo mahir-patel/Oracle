@@ -25,11 +25,17 @@ class Config:
     model_cutoff: datetime = datetime(2026, 7, 1, tzinfo=UTC)
     n_samples: int = 5
     max_web_searches: int = 4
+    max_tokens: int = 4000  # per sample; covers thinking, search code and the reply
+    # Server-side web search tool version (checked against the docs 2026-11-11).
+    web_search_tool: str = "web_search_20260318"
+    # Comma-separated domains the search may not return. The venues' own pages
+    # show the live price, which the agent must not see (rule 2).
+    search_blocked_domains: str = "polymarket.com,kalshi.com"
 
     # --- cost tracking (USD) ---
-    price_in: float = 10.0  # per million input tokens
-    price_out: float = 50.0  # per million output tokens
-    price_per_search: float = 0.01  # placeholder; confirm from the docs in S4
+    price_in: float = 8.0  # per million input tokens (Fable 5.2, docs 2026-11-11)
+    price_out: float = 40.0  # per million output tokens, thinking included
+    price_per_search: float = 0.01  # $10 per 1,000 searches; failed searches are free
     max_spend_per_run: float = 5.0
     first_question_cost_estimate: float = 0.50
 
