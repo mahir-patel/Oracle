@@ -5,8 +5,11 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S3 complete** (tagged `s3`). Next: **S4** — `prompts.py` and the real `Agent` + mocked tests,
-then ask the user to run ONE live forecast on 3 questions.
+**S4 built, not tagged.** `prompts.py` and the real `Agent` are in with mocked tests (194
+passing). Waiting for the user to run ONE live forecast on 3 questions:
+`.venv/bin/python scripts/live_check.py` (needs `ANTHROPIC_API_KEY`; output is saved to
+`data/cache/live_check.json`). Then: read the cost, latency, parse rate and stop reasons,
+adjust, record the numbers under Findings, tag `s4`.
 
 S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
@@ -106,11 +109,39 @@ Kalshi lists latest-closing markets first.
 - **HTTP and network errors raise `httpx.HTTPError`** from `fetch_*` and `resolve` (S3). The
   S5 `resolve` command must catch it and skip the market until the next run.
 
+- **Web search tool is `web_search_20260318`** (S4, docs read 2026-11-11:
+  https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool). It runs
+  searches inside server-side code that filters results before the model reads them; no
+  charge beyond tokens. Searches are counted from `usage.server_tool_use.web_search_requests`.
+  $10 per 1,000 searches; a failed search is not billed.
+- **Prices are 8 / 40 USD per M tokens** (S4), not the spec's 10 / 50: Fable 5.2 is cheaper
+  than 5.1. Thinking tokens are billed as output. Training data cutoff "Jun 2026", so
+  `MODEL_CUTOFF` 2026-07-01 stands.
+- **The search blocks `polymarket.com` and `kalshi.com`** (S4, my addition, not in the
+  original spec). Their pages show the live price, and a search for the question title would
+  find them, which breaks rule 2. Other prediction sites are not blocked.
+- **No model fallback on refusals** (S4). The API offers one; it would log another model's
+  forecast under this model's name. A refusal is a parse failure.
+- **The `Agent` sends no `effort` setting** (S4), so the API default (`high`) applies. This is
+  the first lever to try if the live cost per question is too high.
+- **`max_tokens` 4000 may be tight** (S4): it has to cover thinking, the search-filtering
+  code and the reply. Truncation shows up as `stop_reason: max_tokens` and a parse failure;
+  check the stop reasons in the live run.
+- **API errors** (S4): 429, 5xx and network errors are retried (3 attempts, 2 s then 4 s,
+  SDK retries off), then the sample is dropped and counted in `agent.api_failures`. Other
+  4xx errors are raised so a bad key stops the run. The S5 `forecast` command must let that
+  propagate after writing what it has.
+- **The parser takes the last `<forecast>` block** (S4), since the reasoning may quote the
+  format before the real answer.
+- **`scripts/live_check.py` is temporary** (S4): delete it in S5 once `oracle forecast` exists.
+- **The installed `anthropic` SDK (2.8) uses `httpx2`, not `httpx`.** `markets.py` uses
+  `httpx` directly, which is on the allowed list; tests build SDK errors without importing
+  `httpx2`.
+
 ## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
 1. **Search fees count as cost.** `PRICE_PER_SEARCH` setting; `cost_usd` and the spending cap
-   include searches. The 0.01 default is a placeholder: **confirm the price from the Anthropic
-   docs in S4.**
+   include searches. Confirmed in S4: 0.01 USD per search.
 2. **A bet's `price` = quote + fee**, so paper P&L is net of fees.
 3. **Kalshi fee is rounded up per order**: ceil(0.07 x contracts x P x (1-P) x 100) / 100.
    The edge check uses the per-contract cost (fee for 1 contract). **Verify against Kalshi's
@@ -229,7 +260,5 @@ the extremized training forecasts; score the next 5,000 questions with and witho
 
 ## Next steps
 
-1. S4: `prompts.py` (verbatim from SPEC 6.2) and the real `Agent` in `agent.py` with mocked
-   tests. Confirm the web-search tool version string and the per-search price from the
-   Anthropic docs; include search fees in `cost_usd`. Then ask the user to run ONE live
-   forecast on 3 questions.
+1. S4 gate: the user runs `scripts/live_check.py`; adjust from the result; tag `s4`.
+2. S5: `cli.py` (with the budget guard and `pick_daily`), `report.py`, Pages site, workflow.
