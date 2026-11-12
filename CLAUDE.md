@@ -108,6 +108,9 @@ Kalshi lists latest-closing markets first.
   Disputed/odd cases are made inside the tests by editing a copy of a real fixture.
 - **HTTP and network errors raise `httpx.HTTPError`** from `fetch_*` and `resolve` (S3). The
   S5 `resolve` command must catch it and skip the market until the next run.
+- **Market GETs retry 429, 5xx and network errors** (added 2026-11-12, `markets._get`): 3
+  attempts, 1 s then 2 s apart, then `httpx.HTTPError` as before. Polymarket returned a 500
+  on page 2 of a scan during the S4 live check; the identical request worked a minute later.
 
 - **Web search tool is `web_search_20260318`** (S4, docs read 2026-11-11:
   https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool). It runs

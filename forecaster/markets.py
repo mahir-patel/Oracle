@@ -8,6 +8,7 @@ for the differences from the original spec.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime
 from typing import Any
 
@@ -20,6 +21,9 @@ POLYMARKET_BASE = "https://gamma-api.polymarket.com"
 KALSHI_PAGE = 200
 POLYMARKET_PAGE = 100  # the Gamma API returns at most 100 markets per request
 YES_NO = ["Yes", "No"]
+GET_ATTEMPTS = 3
+GET_BACKOFF_SECONDS = 1.0
+_sleep = time.sleep  # replaced in tests
 
 Raw = dict[str, Any]
 
@@ -30,6 +34,28 @@ def make_client(transport: httpx.BaseTransport | None = None) -> httpx.Client:
         transport=transport,
         headers={"User-Agent": "oracle-forecaster", "Accept": "application/json"},
     )
+
+
+def _get(client: httpx.Client, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+    """GET with retries. Both venues return an occasional 500 on a request that
+    works a second later; one of those must not end a daily run.
+
+    429, 5xx and network errors are tried ``GET_ATTEMPTS`` times (1 s, then 2 s
+    apart). Anything else, and the last failure, raises ``httpx.HTTPError``.
+    """
+    for attempt in range(GET_ATTEMPTS):
+        last = attempt == GET_ATTEMPTS - 1
+        try:
+            response = client.get(url, params=params)
+        except httpx.TransportError:
+            if last:
+                raise
+        else:
+            if last or not (response.status_code == 429 or response.status_code >= 500):
+                response.raise_for_status()
+                return response
+        _sleep(GET_BACKOFF_SECONDS * 2**attempt)
+    raise AssertionError("unreachable")
 
 
 # ---------- shared parsing ----------
@@ -136,8 +162,7 @@ def fetch_kalshi(
             params["max_close_ts"] = int(ensure_utc(max_close).timestamp())
         if cursor:
             params["cursor"] = cursor
-        response = client.get(f"{KALSHI_BASE}/markets", params=params)
-        response.raise_for_status()
+        response = _get(client, f"{KALSHI_BASE}/markets", params=params)
         body = response.json()
         markets = body.get("markets") or []
         seen += len(markets)
@@ -152,8 +177,7 @@ def fetch_kalshi(
 
 
 def resolve_kalshi(client: httpx.Client, ticker: str) -> int | None:
-    response = client.get(f"{KALSHI_BASE}/markets/{ticker}")
-    response.raise_for_status()
+    response = _get(client, f"{KALSHI_BASE}/markets/{ticker}")
     result = (response.json().get("market") or {}).get("result")
     if result == "yes":
         return 1
@@ -239,8 +263,7 @@ def fetch_polymarket(
             params["end_date_min"] = ensure_utc(min_close).strftime("%Y-%m-%dT%H:%M:%SZ")
         if max_close is not None:
             params["end_date_max"] = ensure_utc(max_close).strftime("%Y-%m-%dT%H:%M:%SZ")
-        response = client.get(f"{POLYMARKET_BASE}/markets", params=params)
-        response.raise_for_status()
+        response = _get(client, f"{POLYMARKET_BASE}/markets", params=params)
         markets = response.json()
         for m in markets:
             q = polymarket_to_question(m)
@@ -253,8 +276,7 @@ def fetch_polymarket(
 
 
 def resolve_polymarket(client: httpx.Client, market_id: str) -> int | None:
-    response = client.get(f"{POLYMARKET_BASE}/markets/{market_id}")
-    response.raise_for_status()
+    response = _get(client, f"{POLYMARKET_BASE}/markets/{market_id}")
     m = response.json()
     if not m.get("closed"):
         return None

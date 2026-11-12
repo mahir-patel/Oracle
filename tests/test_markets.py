@@ -340,7 +340,54 @@ def test_fetch_open_dispatches_by_venue() -> None:
             markets.resolve("nope", "x", client)
 
 
-def test_http_errors_raise_so_the_caller_can_skip_and_retry() -> None:
+def test_a_passing_server_error_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    waits: list[float] = []
+    monkeypatch.setattr(markets, "_sleep", waits.append)
+    calls = {"n": 0}
+
+    def flaky(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return json_response({"error": "boom"}, status=500)
+        if calls["n"] == 2:
+            raise httpx.ReadTimeout("slow", request=request)
+        return json_response([])
+
+    with client_for(flaky) as client:
+        assert markets.fetch_polymarket(client, 10) == []
+    assert calls["n"] == 3 and waits == [1.0, 2.0]
+
+
+def test_a_lasting_server_error_raises_after_three_tries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(markets, "_sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def down(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return json_response({"error": "boom"}, status=503)
+
+    with client_for(down) as client, pytest.raises(httpx.HTTPStatusError):
+        markets.fetch_kalshi(client, 10)
+    assert calls["n"] == 3
+
+
+def test_a_client_error_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(markets, "_sleep", lambda s: pytest.fail("must not wait"))
+    calls = {"n": 0}
+
+    def missing(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return json_response({"error": "nope"}, status=404)
+
+    with client_for(missing) as client, pytest.raises(httpx.HTTPStatusError):
+        markets.resolve("kalshi", "MISSING", client)
+    assert calls["n"] == 1
+
+
+def test_http_errors_raise_so_the_caller_can_skip_and_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(markets, "_sleep", lambda s: None)
     kalshi_404 = {"error": {"code": "not_found", "message": "not found"}}
     with client_for(lambda r: json_response(kalshi_404, status=404)) as client:
         with pytest.raises(httpx.HTTPError):
