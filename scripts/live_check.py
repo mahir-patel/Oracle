@@ -10,6 +10,7 @@ The `forecast` command replaces this script in S5.
 from __future__ import annotations
 
 import json
+import os
 import random
 import sys
 from collections import Counter
@@ -43,6 +44,9 @@ def pick_questions(now: datetime) -> list[Question]:
 
 
 def main() -> int:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("ANTHROPIC_API_KEY is not set in this shell. Nothing was spent.")
+        return 2
     config = load_config()
     now = datetime.now(UTC)
     questions = pick_questions(now)
