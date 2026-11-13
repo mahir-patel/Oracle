@@ -78,7 +78,20 @@ class FakeClient:
         return item
 
 
+# Prices are pinned so the cost arithmetic in these tests does not move when
+# the default model changes.
+PINNED = {
+    "price_in": 8.0,
+    "price_out": 40.0,
+    "cache_read_multiplier": 0.025,
+    "long_prompt_tokens": 0,
+    "max_spend_per_run": 5.0,
+    "max_web_searches": 4,
+}
+
+
 def make_agent(script: Any = None, **overrides: Any) -> tuple[Agent, FakeClient]:
+    overrides = {**PINNED, **overrides}
     client = FakeClient(script)
     slept: list[float] = []
     agent = Agent(Config(**overrides), client=client, sleep=slept.append, keep_transcripts=True)
@@ -147,7 +160,7 @@ def test_request_follows_the_spec() -> None:
     agent, client = make_agent()
     agent.forecast(make_question(), 1, NOW)
     (call,) = client.calls
-    assert call["model"] == "claude-fable-5-2" == agent.model
+    assert call["model"] == "claude-haiku-5-5" == agent.model
     assert call["max_tokens"] == 4000
     assert call["system"] == SYSTEM_PROMPT
     assert call["tools"] == [
@@ -158,8 +171,11 @@ def test_request_follows_the_spec() -> None:
             "blocked_domains": ["polymarket.com", "kalshi.com"],
         }
     ]
-    # Fable 5.2 rejects sampling parameters and explicit thinking budgets.
-    assert set(call) == {"model", "max_tokens", "system", "tools", "messages", "cache_control"}
+    assert call["thinking"] == {"type": "adaptive"}
+    # No sampling parameters and no thinking budget: current models reject both.
+    assert set(call) == {
+        "model", "max_tokens", "system", "tools", "messages", "cache_control", "thinking",
+    }  # fmt: skip
     (message,) = call["messages"]
     assert message["role"] == "user"
     assert "QUESTION: Will it happen?" in message["content"]
@@ -217,6 +233,23 @@ def test_cost_without_searches() -> None:
     agent.forecast(make_question(), 1, NOW)
     assert agent.cost_usd == pytest.approx(0.048)
     assert agent.n_searches == 0
+
+
+def test_a_long_prompt_pays_the_higher_price_tier() -> None:
+    tiers = {"price_in": 0.10, "price_out": 0.50, "long_prompt_tokens": 100_000}
+    short, _ = make_agent(reply(tokens_in=100_000, tokens_out=1000, searches=0), **tiers)
+    short.forecast(make_question(), 1, NOW)
+    assert short.cost_usd == pytest.approx(0.010 + 0.0005)
+    long, _ = make_agent(reply(tokens_in=100_001, tokens_out=1000, searches=0), **tiers)
+    long.forecast(make_question(), 1, NOW)
+    assert long.cost_usd == pytest.approx(100_001 * 0.50 / 1e6 + 0.0025)
+
+
+def test_optional_request_settings() -> None:
+    agent, client = make_agent(thinking="", search_allowed_callers="direct")
+    agent.forecast(make_question(), 1, NOW)
+    assert "thinking" not in client.calls[0]
+    assert client.calls[0]["tools"][0]["allowed_callers"] == ["direct"]
 
 
 def test_cached_tokens_are_priced_at_the_cache_rates() -> None:
@@ -369,5 +402,5 @@ def test_real_agent_through_the_pipeline() -> None:
     assert f.raw_prob == pytest.approx(0.37)
     assert f.n_searches == 10
     assert f.cost_usd == pytest.approx(agent.cost_usd) and f.cost_usd > 0
-    assert f.model == "claude-fable-5-2"
+    assert f.model == "claude-haiku-5-5"
 

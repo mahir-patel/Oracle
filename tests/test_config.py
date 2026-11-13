@@ -8,13 +8,15 @@ from forecaster.config import Config, load_config
 def test_defaults_match_spec() -> None:
     c = load_config({})
     assert c == Config()
-    assert c.model == "claude-fable-5-2"
+    assert c.model == "claude-haiku-5-5"
+    assert (c.thinking, c.search_allowed_callers) == ("adaptive", "")
     assert c.model_cutoff == datetime(2026, 7, 1, tzinfo=UTC)
     assert c.n_samples == 5
-    assert c.max_web_searches == 4
-    assert (c.price_in, c.price_out, c.price_per_search) == (8.0, 40.0, 0.01)
+    assert c.max_web_searches == 2
+    assert (c.price_in, c.price_out, c.price_per_search) == (0.10, 0.50, 0.01)
+    assert (c.long_prompt_tokens, c.price_in_long, c.price_out_long) == (100_000, 0.50, 2.50)
     assert c.max_tokens == 4000
-    assert (c.cache_write_multiplier, c.cache_read_multiplier) == (1.25, 0.025)
+    assert (c.cache_write_multiplier, c.cache_read_multiplier) == (1.25, 0.1)
     assert c.web_search_tool == "web_search_20260318"
     assert c.search_blocked_domains == "polymarket.com,kalshi.com"
     assert c.trim_fraction == 0.2
@@ -24,7 +26,7 @@ def test_defaults_match_spec() -> None:
     assert c.min_edge == 0.04
     assert c.max_stake_fraction == 0.05
     assert c.bankroll == 1000.0
-    assert c.max_spend_per_run == 5.0
+    assert c.max_spend_per_run == 1.0
     assert c.ledger_path == "data/ledger.jsonl"
 
 

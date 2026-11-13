@@ -49,7 +49,7 @@ You are a senior software engineer, ML engineer, data scientist and quant buildi
 3. **Append-only, hash-chained ledger.** No forecast is ever edited or deleted. *Why:* the track record is only credible if it's provably unaltered.
 4. **Every tunable number is fitted only on resolved, post-cutoff data, in chronological order.** The scores in reports always use the probability that was logged at forecast time, so they're out of sample by construction.
 5. **Measure everything:** dollar cost per forecast, parse failures, latency, and the number of web searches.
-6. **Hard spending cap per run** (`ORACLE_MAX_SPEND_PER_RUN`, default $5). Abort the run cleanly once it's reached. Before each question, estimate its cost as the run's average cost per question so far ($0.50 for the first) and skip it if the remaining budget is below that estimate. Samples run in parallel, so overshooting by up to one question's cost is accepted. Log actual spend vs the cap at the end of the run.
+6. **Hard spending cap per run** (`ORACLE_MAX_SPEND_PER_RUN`, default $1; the whole project also has a total budget of $50, `ORACLE_MAX_SPEND_TOTAL`, checked against the sum of `cost_usd` in the ledger before each run). Abort the run cleanly once it's reached. Before each question, estimate its cost as the run's average cost per question so far ($0.50 for the first) and skip it if the remaining budget is below that estimate. Samples run in parallel, so overshooting by up to one question's cost is accepted. Log actual spend vs the cap at the end of the run.
 
 ## 3. Repo layout
 
@@ -89,15 +89,18 @@ oracle/
 
 | Setting | Default | Why |
 |---|---|---|
-| `MODEL` | `claude-fable-5-2` | The model I'm using |
+| `MODEL` | `claude-haiku-5-5` (changed from `claude-fable-5-2` on 2026-11-13) | The project's total budget is 50 USD. Fable 5.2 cost about 5.50 USD per question in the live check; Haiku 5.5 is expected to cost about 0.15. The ledger records the model of every forecast, and results from different models are never pooled |
 | `MODEL_CUTOFF` | `2026-07-01` (env-overridable) | Set to the model's published training cutoff; see rule 1 |
 | `N_SAMPLES` | 5 | One per persona; balances diversity against cost |
-| `MAX_WEB_SEARCHES` | 4 per sample | Caps cost; more searches give diminishing returns |
+| `MAX_WEB_SEARCHES` | 2 per sample | On Haiku the search fee (0.01 USD each) is most of the cost |
+| `THINKING` | `adaptive` | Haiku 5.5 does not think unless asked; empty sends no thinking setting |
+| `SEARCH_ALLOWED_CALLERS` | empty (API default) | Set to `direct` if the API says the model cannot run searches from code |
 | `MAX_TOKENS` | 4000 per sample | Covers thinking, search-filtering code and the reply; a truncated reply is a parse failure |
 | `WEB_SEARCH_TOOL` | `web_search_20260318` | Newest version in the Anthropic docs (checked 2026-11-11) |
 | `SEARCH_BLOCKED_DOMAINS` | `polymarket.com,kalshi.com` | The venues' own pages show the live price; see rule 2 |
-| `PRICE_IN` / `PRICE_OUT` | 8 / 40 USD per M tokens (Fable 5.2 list price, checked 2026-11-11) | For cost tracking; update if pricing changes |
-| `CACHE_WRITE_MULTIPLIER` / `CACHE_READ_MULTIPLIER` | 1.25 / 0.025 (Fable 5.2, checked 2026-11-12) | Cached input is priced as a multiple of `PRICE_IN`; reads are 40 times cheaper than fresh input |
+| `PRICE_IN` / `PRICE_OUT` | 0.10 / 0.50 USD per M tokens (Haiku 5.5 list price, checked 2026-11-13) | For cost tracking; update if pricing changes |
+| `LONG_PROMPT_TOKENS`, `PRICE_IN_LONG` / `PRICE_OUT_LONG` | 100,000; 0.50 / 2.50 | Haiku 5.5 charges a request whose prompt exceeds 100,000 tokens at the higher prices; 0 switches the tier off |
+| `CACHE_WRITE_MULTIPLIER` / `CACHE_READ_MULTIPLIER` | 1.25 / 0.1 (Haiku 5.5, checked 2026-11-13) | Cached input is priced as a multiple of the input price |
 | `PRICE_PER_SEARCH` | 0.01 USD (10 USD per 1,000 searches, confirmed 2026-11-11; failed searches are not billed) | Web searches are billed per search on top of tokens; leaving them out understates cost |
 | `FIRST_QUESTION_COST_ESTIMATE` | 0.50 USD | Pre-question budget guard before the run has an average (rule 6) |
 | `TRIM_FRACTION` | 0.2 | Robust to one sample going off the rails |
@@ -107,7 +110,8 @@ oracle/
 | `MIN_EDGE` | 0.04 | Edge after fees and spread; smaller edges are noise |
 | `MAX_STAKE_FRACTION` | 0.05 | Per-bet cap as a share of bankroll |
 | `BANKROLL` | 1000 | Paper bankroll; no compounding in v1 |
-| `MAX_SPEND_PER_RUN` | 5.0 | Hard dollar cap |
+| `MAX_SPEND_PER_RUN` | 1.0 | Hard dollar cap per run |
+| `MAX_SPEND_TOTAL` | 50.0 (built in S5 with the `forecast` command) | Hard cap on everything the project ever spends |
 | `LEDGER_PATH` etc. | `data/ledger.jsonl`, `data/params.json`, `data/calibrator.json` | |
 
 ## 6. Module specs
@@ -163,7 +167,7 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
 
 ### 6.3 `agent.py`
 - `Agent.forecast(q, n, now) -> list[Sample]` runs n passes in parallel (thread pool, at most 5 workers).
-- Each pass calls `messages.create` with `max_tokens=4000`, the system prompt, and the server-side web search tool: `{"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": MAX_WEB_SEARCHES, "blocked_domains": SEARCH_BLOCKED_DOMAINS}`. The version is `web_search_20260318` (docs checked 2026-11-11); it filters results in server-side code before the model reads them, at no extra charge beyond tokens. No sampling parameters and no thinking settings are sent: Fable 5.2 rejects the former and always thinks.
+- Each pass calls `messages.create` with `max_tokens=4000`, the system prompt, and the server-side web search tool: `{"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": MAX_WEB_SEARCHES, "blocked_domains": SEARCH_BLOCKED_DOMAINS}`. The version is `web_search_20260318` (docs checked 2026-11-11); it filters results in server-side code before the model reads them, at no extra charge beyond tokens. No sampling parameters are sent (current models reject them). `thinking={"type": THINKING}` is sent when `THINKING` is not empty.
 - If the reply stops with `pause_turn`, send the paused reply back unchanged to resume it (at most 3 times); every request is billed.
 - No model fallback. A refusal or a reply cut off at `max_tokens` has no forecast block and counts as a parse failure. *Why:* a different model answering would be a different forecaster with a different training cutoff, logged under the wrong name.
 - Join the text blocks, then parse with the regex `<forecast>\s*(\{.*?\})\s*</forecast>` (DOTALL), taking the last match. Clamp the probability to [0.01, 0.99]. Drop a sample (return None) on a parse failure and count the failure.
@@ -312,7 +316,7 @@ Sections:
 - **Daily (automatic):** resolve → forecast → report → verify → commit.
 - **Weekly (me + you):** read the report. Look at the worst-scoring resolved forecasts and read their rationales: was the error from misreading the rules, a bad base rate, stale news or bad luck? Write the findings in CLAUDE.md.
 - **Refit:** only at 30, 100, 300 and 1,000 clean resolved forecasts. Never tune on fewer. Every change to a prompt or parameter is its own commit and is judged by later out-of-sample BSS, never by how good the reasoning sounds.
-- **Budget:** about 10 questions a day at roughly $0.10–0.50 each. Watch `total_cost_usd`.
+- **Budget:** 50 USD in total. About 5 questions a day at roughly $0.15 each, which is about 300 forecasts over 60 days. Watch `total_cost_usd`.
 - **Credibility threshold:** don't publicly claim to beat the market until n ≥ 200 and the BSS CI lower bound is > 0.
 
 ## 11. Roadmap (do NOT build until I ask; listed so the architecture leaves room)

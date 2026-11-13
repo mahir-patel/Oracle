@@ -153,6 +153,9 @@ class Agent:
         blocked = [d.strip() for d in self.config.search_blocked_domains.split(",") if d.strip()]
         if blocked:
             tool["blocked_domains"] = blocked
+        callers = [c.strip() for c in self.config.search_allowed_callers.split(",") if c.strip()]
+        if callers:
+            tool["allowed_callers"] = callers
         return [tool]
 
     def _one_pass(self, q: Question, index: int, now: datetime) -> Sample | None:
@@ -210,9 +213,13 @@ class Agent:
     def _request(self, messages: list[dict[str, Any]]) -> Any:
         """One ``messages.create`` call; retries rate limits, 5xx and network errors."""
         last: Exception | None = None
+        extra: dict[str, Any] = {}
+        if self.config.thinking:
+            extra["thinking"] = {"type": self.config.thinking}
         for attempt in range(MAX_ATTEMPTS):
             try:
                 return self.client.messages.create(
+                    **extra,
                     model=self.model,
                     max_tokens=self.config.max_tokens,
                     system=SYSTEM_PROMPT,
@@ -241,6 +248,10 @@ class Agent:
         written = getattr(usage, "cache_creation_input_tokens", 0) or 0
         cached = getattr(usage, "cache_read_input_tokens", 0) or 0
         tokens_in = fresh + written + cached
+        # A long prompt moves the whole request to the higher price tier.
+        long = 0 < self.config.long_prompt_tokens < tokens_in
+        price_in = self.config.price_in_long if long else self.config.price_in
+        price_out = self.config.price_out_long if long else self.config.price_out
         billed_in = (
             fresh
             + written * self.config.cache_write_multiplier
@@ -250,8 +261,8 @@ class Agent:
         server_tools = getattr(usage, "server_tool_use", None)
         searches = (getattr(server_tools, "web_search_requests", 0) or 0) if server_tools else 0
         cost = (
-            billed_in * self.config.price_in / 1e6
-            + tokens_out * self.config.price_out / 1e6
+            billed_in * price_in / 1e6
+            + tokens_out * price_out / 1e6
             + searches * self.config.price_per_search
         )
         with self._lock:

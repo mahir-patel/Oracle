@@ -5,13 +5,12 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S4 built, not tagged. The first live run cost $4.65 for ONE question (see Findings); the
-one-sample diagnostic cost $1.10 and caching saved nothing. Next: find why searches fail
-(one more one-sample run), then a cost decision with the user.** `prompts.py` and the real `Agent` are in with mocked tests (194
-passing). Waiting for the user to run ONE live forecast on 3 questions:
-`.venv/bin/python scripts/live_check.py` (needs `ANTHROPIC_API_KEY`; output is saved to
-`data/cache/live_check.json`). Then: read the cost, latency, parse rate and stop reasons,
-adjust, record the numbers under Findings, tag `s4`.
+**S4 built, not tagged. Model switched to Haiku 5.5 on 2026-11-13** (user decision: the
+project is a portfolio piece with a **total budget of 50 USD**, about 5.75 already spent on
+the Fable 5.2 live checks; see Findings). Waiting for the user to run the live check on the
+new settings: `.venv/bin/python scripts/live_check.py` (3 questions, expected well under
+$1). Then: read cost, latency, parse rate, stop reasons and the reply blocks, adjust, record
+the numbers under Findings, tag `s4`.
 
 S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
@@ -142,6 +141,23 @@ Kalshi lists latest-closing markets first.
 - **The installed `anthropic` SDK (2.8) uses `httpx2`, not `httpx`.** `markets.py` uses
   `httpx` directly, which is on the allowed list; tests build SDK errors without importing
   `httpx2`.
+
+- **Model is `claude-haiku-5-5`, 5 samples, 2 searches each** (2026-11-13, user decision on a
+  50 USD total budget; replaces the S4 Fable prices above). Docs read 2026-11-13: training
+  cutoff "Jun 2026", same as Fable, so `MODEL_CUTOFF` stands. Prices 0.10 / 0.50 USD per M;
+  **a request whose prompt exceeds 100,000 tokens pays 0.50 / 2.50**, and the Fable run used
+  104,450 input tokens in one request, so the cost tracker applies the higher tier per
+  response (`LONG_PROMPT_TOKENS`). Cache read is 0.1x. Expected about $0.15 per question,
+  most of it search fees. Never pool Fable and Haiku forecasts in one skill number.
+- **`thinking={"type": "adaptive"}` is now sent** (`THINKING` setting): Haiku 5.5's thinking
+  is not always on. Untested live; a 400 on the next run means set `ORACLE_THINKING=`.
+- **`SEARCH_ALLOWED_CALLERS` setting, empty by default.** The docs do not say whether Haiku
+  5.5 can run searches from filtering code. If the API returns a 400 asking for it, set
+  `ORACLE_SEARCH_ALLOWED_CALLERS=direct`.
+- **Per-run cap is now $1; S5 must add `MAX_SPEND_TOTAL` = 50**, checked against the sum of
+  `cost_usd` in the ledger before each run, and pick about 5 questions a day.
+- **Still open from the Fable run:** searches failing "on a tool limit". Check the reply
+  blocks in the next run.
 
 ## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
@@ -311,11 +327,11 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
   findings in this file.
 - **Refit:** only at 30, 100, 300 and 1,000 clean resolved forecasts. Never tune on fewer.
   Every prompt or parameter change is its own commit, judged by later out-of-sample BSS.
-- **Budget:** about 10 questions a day at roughly $0.10–0.50 each. Watch `total_cost_usd`.
+- **Budget:** 50 USD in total; about 5 questions a day at roughly $0.15 each. Watch `total_cost_usd`.
 - **Credibility threshold:** no public claim of beating the market until n ≥ 200 and the BSS
   CI lower bound is > 0.
 
 ## Next steps
 
-1. S4 gate: the user runs `scripts/live_check.py`; adjust from the result; tag `s4`.
+1. S4 gate: the user runs `scripts/live_check.py` on Haiku 5.5; adjust from the result; tag `s4`.
 2. S5: `cli.py` (with the budget guard and `pick_daily`), `report.py`, Pages site, workflow.

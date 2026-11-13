@@ -19,29 +19,43 @@ ENV_PREFIX = "ORACLE_"
 @dataclass(frozen=True)
 class Config:
     # --- model ---
-    model: str = "claude-fable-5-2"
+    # Haiku 5.5 since 2026-11-13: the whole project has a 50 USD budget, and
+    # Fable 5.2 cost about 5.50 USD per question in the live check.
+    model: str = "claude-haiku-5-5"
     # Questions resolved before this instant may be remembered by the model, so
     # they are excluded from scoring, fitting and the public record (rule 1).
     model_cutoff: datetime = datetime(2026, 7, 1, tzinfo=UTC)
     n_samples: int = 5
-    max_web_searches: int = 4
+    max_web_searches: int = 2  # search fees are most of the cost on Haiku
     max_tokens: int = 4000  # per sample; covers thinking, search code and the reply
     # Server-side web search tool version (checked against the docs 2026-11-11).
     web_search_tool: str = "web_search_20260318"
     # Comma-separated domains the search may not return. The venues' own pages
     # show the live price, which the agent must not see (rule 2).
     search_blocked_domains: str = "polymarket.com,kalshi.com"
+    # Comma-separated `allowed_callers` for the search tool; empty = API default
+    # (searches run from filtering code). Set to "direct" if the API asks for it.
+    search_allowed_callers: str = ""
+    # Thinking mode sent with each request; empty sends none. Haiku 5.5 does not
+    # think unless asked, and a forecast needs the reasoning.
+    thinking: str = "adaptive"
 
     # --- cost tracking (USD) ---
-    price_in: float = 8.0  # per million input tokens (Fable 5.2, docs 2026-11-11)
-    price_out: float = 40.0  # per million output tokens, thinking included
-    # Prompt caching (docs 2026-11-12): a cache write costs 1.25x the input price,
-    # a cache read 0.025x on Fable 5.2. Reads are where the saving is.
+    # Haiku 5.5 list prices per million tokens (docs 2026-11-13). Thinking is
+    # billed as output.
+    price_in: float = 0.10
+    price_out: float = 0.50
+    # Haiku 5.5 charges a request whose prompt is over 100,000 tokens (cached
+    # tokens included) at higher prices. 0 switches the second tier off.
+    long_prompt_tokens: int = 100_000
+    price_in_long: float = 0.50
+    price_out_long: float = 2.50
+    # Prompt caching: a write costs 1.25x the input price, a read 0.1x.
     cache_write_multiplier: float = 1.25
-    cache_read_multiplier: float = 0.025
+    cache_read_multiplier: float = 0.1
     price_per_search: float = 0.01  # $10 per 1,000 searches; failed searches are free
-    max_spend_per_run: float = 5.0
-    first_question_cost_estimate: float = 0.50
+    max_spend_per_run: float = 1.0
+    first_question_cost_estimate: float = 0.20
 
     # --- aggregation (priors, replaced by fitted values in params.json) ---
     trim_fraction: float = 0.2
