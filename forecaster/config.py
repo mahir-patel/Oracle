@@ -35,6 +35,10 @@ class Config:
     # --- cost tracking (USD) ---
     price_in: float = 8.0  # per million input tokens (Fable 5.2, docs 2026-11-11)
     price_out: float = 40.0  # per million output tokens, thinking included
+    # Prompt caching (docs 2026-11-12): a cache write costs 1.25x the input price,
+    # a cache read 0.025x on Fable 5.2. Reads are where the saving is.
+    cache_write_multiplier: float = 1.25
+    cache_read_multiplier: float = 0.025
     price_per_search: float = 0.01  # $10 per 1,000 searches; failed searches are free
     max_spend_per_run: float = 5.0
     first_question_cost_estimate: float = 0.50

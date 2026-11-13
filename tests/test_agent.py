@@ -159,7 +159,7 @@ def test_request_follows_the_spec() -> None:
         }
     ]
     # Fable 5.2 rejects sampling parameters and explicit thinking budgets.
-    assert set(call) == {"model", "max_tokens", "system", "tools", "messages"}
+    assert set(call) == {"model", "max_tokens", "system", "tools", "messages", "cache_control"}
     (message,) = call["messages"]
     assert message["role"] == "user"
     assert "QUESTION: Will it happen?" in message["content"]
@@ -217,6 +217,22 @@ def test_cost_without_searches() -> None:
     agent.forecast(make_question(), 1, NOW)
     assert agent.cost_usd == pytest.approx(0.048)
     assert agent.n_searches == 0
+
+
+def test_cached_tokens_are_priced_at_the_cache_rates() -> None:
+    def cached(kwargs: Any) -> SimpleNamespace:
+        r = reply(tokens_in=1000, tokens_out=0, searches=0)
+        r.usage.cache_creation_input_tokens = 2000
+        r.usage.cache_read_input_tokens = 80_000
+        return r
+
+    agent, client = make_agent(cached)
+    agent.forecast(make_question(), 1, NOW)
+    assert client.calls[0]["cache_control"] == {"type": "ephemeral"}
+    # 1,000 fresh + 2,000 written at 1.25x + 80,000 read at 0.025x, at 8 USD per M.
+    assert agent.cost_usd == pytest.approx((1000 + 2500 + 2000) * 8 / 1e6)
+    assert agent.input_tokens == 83_000
+    assert agent.transcripts is not None and agent.transcripts[0]["cached_tokens"] == 80_000
 
 
 def test_parse_failure_drops_the_sample_but_still_costs() -> None:

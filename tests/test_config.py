@@ -14,6 +14,7 @@ def test_defaults_match_spec() -> None:
     assert c.max_web_searches == 4
     assert (c.price_in, c.price_out, c.price_per_search) == (8.0, 40.0, 0.01)
     assert c.max_tokens == 4000
+    assert (c.cache_write_multiplier, c.cache_read_multiplier) == (1.25, 0.025)
     assert c.web_search_tool == "web_search_20260318"
     assert c.search_blocked_domains == "polymarket.com,kalshi.com"
     assert c.trim_fraction == 0.2

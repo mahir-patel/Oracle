@@ -97,6 +97,7 @@ oracle/
 | `WEB_SEARCH_TOOL` | `web_search_20260318` | Newest version in the Anthropic docs (checked 2026-11-11) |
 | `SEARCH_BLOCKED_DOMAINS` | `polymarket.com,kalshi.com` | The venues' own pages show the live price; see rule 2 |
 | `PRICE_IN` / `PRICE_OUT` | 8 / 40 USD per M tokens (Fable 5.2 list price, checked 2026-11-11) | For cost tracking; update if pricing changes |
+| `CACHE_WRITE_MULTIPLIER` / `CACHE_READ_MULTIPLIER` | 1.25 / 0.025 (Fable 5.2, checked 2026-11-12) | Cached input is priced as a multiple of `PRICE_IN`; reads are 40 times cheaper than fresh input |
 | `PRICE_PER_SEARCH` | 0.01 USD (10 USD per 1,000 searches, confirmed 2026-11-11; failed searches are not billed) | Web searches are billed per search on top of tokens; leaving them out understates cost |
 | `FIRST_QUESTION_COST_ESTIMATE` | 0.50 USD | Pre-question budget guard before the run has an average (rule 6) |
 | `TRIM_FRACTION` | 0.2 | Robust to one sample going off the rails |
@@ -166,7 +167,8 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
 - If the reply stops with `pause_turn`, send the paused reply back unchanged to resume it (at most 3 times); every request is billed.
 - No model fallback. A refusal or a reply cut off at `max_tokens` has no forecast block and counts as a parse failure. *Why:* a different model answering would be a different forecaster with a different training cutoff, logged under the wrong name.
 - Join the text blocks, then parse with the regex `<forecast>\s*(\{.*?\})\s*</forecast>` (DOTALL), taking the last match. Clamp the probability to [0.01, 0.99]. Drop a sample (return None) on a parse failure and count the failure.
-- Track cost from `usage`: input and output tokens times the prices, plus the number of web searches times `PRICE_PER_SEARCH`. Add it to `agent.cost_usd`; this total is what the spending cap is checked against. Also log the number of searches.
+- Every request sets `cache_control={"type": "ephemeral"}` (automatic prompt caching). *Why:* search results are re-read as input within a turn and on every resumed turn; a cache read costs 0.025 of the input price and changes nothing the model sees.
+- Track cost from `usage`: fresh input, cache writes and cache reads at their own prices, output tokens times the price, plus the number of web searches times `PRICE_PER_SEARCH`. Add it to `agent.cost_usd`; this total is what the spending cap is checked against. Also log the number of searches.
 - Retry rate limits, 5xx and network errors with exponential backoff (3 attempts, the SDK's own retries switched off); after that the sample is dropped and counted in `api_failures`. Other 4xx errors (bad request, bad key) are raised, so a misconfigured run stops. Respect the spending cap: no request starts once `cost_usd` has reached it.
 - **FakeAgent(truth_fn, noise=0.5, hedge=0.7, seed)**: each sample = sigmoid(hedge·logit(truth) + N(0, noise)), clipped to [0.01, 0.99]. It has `cost_usd = 0` and `model = "fake"`. It's used by tests and the simulation.
 

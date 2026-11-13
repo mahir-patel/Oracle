@@ -253,7 +253,21 @@ account ran out of credit on question 2 (HTTP 400, raised as designed).
   $0.20, output is at most 5 x 4,000 tokens = $0.80 unless turns were paused, so **input is
   at least about $3.6, i.e. 90,000+ input tokens per sample**. Search results are the cost.
 - Not yet known: tokens per pass, cached share, stop reasons. The next run prints them.
-- Levers, none applied yet (each needs the user's yes): `N_SAMPLES` 5 -> 3,
+- **Applied 2026-11-12: automatic prompt caching** (`cache_control={"type": "ephemeral"}` on
+  every request). A Fable 5.2 cache read costs 0.025x input ($0.20 vs $8 per M), a write
+  1.25x. It changes the bill only, not what the model sees. Certain to help on resumed
+  (`pause_turn`) turns; the docs do NOT say whether it applies between the search iterations
+  inside one request, so the saving is unmeasured until the next live run (`cached_tokens`).
+  Cost tracking now prices fresh / written / read input separately.
+- **Proposed, not built: Batch API for the daily run** (50% off everything, web search
+  supported, most batches done in under 1 hour, 24 h limit, no effect on output). Needs the
+  user's yes: `forecast` becomes submit-then-collect, and the market price must be read when
+  the result is logged.
+- The user's rule (2026-11-12): cheapest way that does not compromise quality. So Fable 5.2,
+  5 samples and 4 searches stay unless a measurement shows a cut costs nothing.
+- Docs facts (2026-11-12): the search tool has no parameter limiting result size; effort is
+  `output_config={"effort": ...}`, default `high`; Haiku 5.5 is $0.10 / $0.50 per M.
+- Other levers, none applied (each needs the user's yes): `N_SAMPLES` 5 -> 3,
   `MAX_WEB_SEARCHES` 4 -> 2, an `effort` setting, `max_content_tokens`-style limits if the
   tool has one (check the docs).
 

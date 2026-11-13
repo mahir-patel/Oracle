@@ -196,6 +196,10 @@ class Agent:
                     system=SYSTEM_PROMPT,
                     tools=self._tools(),
                     messages=messages,
+                    # Automatic prompt caching: text the API has already read in
+                    # this turn is re-read at the cache price. It changes the
+                    # bill only, never what the model sees.
+                    cache_control={"type": "ephemeral"},
                 )
             except (anthropic.RateLimitError, anthropic.APIConnectionError) as exc:
                 last = exc
@@ -208,20 +212,23 @@ class Agent:
         raise RetriesExhausted(str(last)) from last
 
     def _record_usage(self, usage: Any) -> dict[str, float]:
-        """Tokens at the list prices plus the per-search fee. Cached input tokens,
-        if any, are charged at the full input price, which can only overstate.
+        """Tokens at the list prices plus the per-search fee. ``input_tokens``
+        excludes cached tokens; cache writes and reads have their own prices.
         Returns what this one response used."""
+        fresh = usage.input_tokens or 0
+        written = getattr(usage, "cache_creation_input_tokens", 0) or 0
         cached = getattr(usage, "cache_read_input_tokens", 0) or 0
-        tokens_in = (
-            (usage.input_tokens or 0)
-            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-            + cached
+        tokens_in = fresh + written + cached
+        billed_in = (
+            fresh
+            + written * self.config.cache_write_multiplier
+            + cached * self.config.cache_read_multiplier
         )
         tokens_out = usage.output_tokens or 0
         server_tools = getattr(usage, "server_tool_use", None)
         searches = (getattr(server_tools, "web_search_requests", 0) or 0) if server_tools else 0
         cost = (
-            tokens_in * self.config.price_in / 1e6
+            billed_in * self.config.price_in / 1e6
             + tokens_out * self.config.price_out / 1e6
             + searches * self.config.price_per_search
         )
