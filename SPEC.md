@@ -49,7 +49,7 @@ You are a senior software engineer, ML engineer, data scientist and quant buildi
 3. **Append-only, hash-chained ledger.** No forecast is ever edited or deleted. *Why:* the track record is only credible if it's provably unaltered.
 4. **Every tunable number is fitted only on resolved, post-cutoff data, in chronological order.** The scores in reports always use the probability that was logged at forecast time, so they're out of sample by construction.
 5. **Measure everything:** dollar cost per forecast, parse failures, latency, and the number of web searches.
-6. **Hard spending cap per run** (`ORACLE_MAX_SPEND_PER_RUN`, default $1; the whole project also has a total budget of $50, `ORACLE_MAX_SPEND_TOTAL`, checked against the sum of `cost_usd` in the ledger before each run). Abort the run cleanly once it's reached. Before each question, estimate its cost as the run's average cost per question so far ($0.50 for the first) and skip it if the remaining budget is below that estimate. Samples run in parallel, so overshooting by up to one question's cost is accepted. Log actual spend vs the cap at the end of the run.
+6. **Hard spending cap per run** (`ORACLE_MAX_SPEND_PER_RUN`, default $1; the whole project also has a total budget of $50, `ORACLE_MAX_SPEND_TOTAL`, checked against the sum of `cost_usd` in the ledger before each run). Abort the run cleanly once it's reached. Before each question, estimate its cost as the run's average cost per question so far ($0.20 for the first) and skip it if the remaining budget is below that estimate. Samples run in parallel, so overshooting by up to one question's cost is accepted. Log actual spend vs the cap at the end of the run.
 
 ## 3. Repo layout
 
@@ -102,7 +102,7 @@ oracle/
 | `LONG_PROMPT_TOKENS`, `PRICE_IN_LONG` / `PRICE_OUT_LONG` | 100,000; 0.50 / 2.50 | Haiku 5.5 charges a request whose prompt exceeds 100,000 tokens at the higher prices; 0 switches the tier off |
 | `CACHE_WRITE_MULTIPLIER` / `CACHE_READ_MULTIPLIER` | 1.25 / 0.1 (Haiku 5.5, checked 2026-11-13) | Cached input is priced as a multiple of the input price |
 | `PRICE_PER_SEARCH` | 0.01 USD (10 USD per 1,000 searches, confirmed 2026-11-11; failed searches are not billed) | Web searches are billed per search on top of tokens; leaving them out understates cost |
-| `FIRST_QUESTION_COST_ESTIMATE` | 0.50 USD | Pre-question budget guard before the run has an average (rule 6) |
+| `FIRST_QUESTION_COST_ESTIMATE` | 0.20 USD | Pre-question budget guard before the run has an average (rule 6) |
 | `TRIM_FRACTION` | 0.2 | Robust to one sample going off the rails |
 | `EXTREMIZE_ALPHA` | 1.3 (before fitting) | LLMs hedge toward 50%; replaced by the fitted value |
 | `MARKET_WEIGHT` | 0.5 (before fitting) | A neutral prior; replaced by the fitted value |

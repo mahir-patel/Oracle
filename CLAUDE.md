@@ -172,7 +172,7 @@ Kalshi lists latest-closing markets first.
    bound > 0. Never hunt for a passing seed. **Report per-seed results here in S2, including
    any seed that fails on its own.**
 5. **Budget guard.** Before each question, estimate its cost as the run's average so far
-   ($0.50 for the first, `FIRST_QUESTION_COST_ESTIMATE`) and skip it if the remaining budget
+   ($0.20 for the first, `FIRST_QUESTION_COST_ESTIMATE`) and skip it if the remaining budget
    is smaller. Overshoot of up to one question is accepted. Log actual spend vs cap at the end.
 
 ## Fee schedules (verified 2026-11-10)
