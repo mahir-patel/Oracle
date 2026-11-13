@@ -104,6 +104,13 @@ def report(agent: Agent, config: Config, rows: list[dict], now: datetime) -> Non
             f" / {t['output_tokens']:>6,}  {t['searches']}  ${t['cost_usd']:.3f}"
         )
 
+    kinds = Counter(
+        (b["type"], b.get("name", ""), b.get("error", "")) for t in transcripts for b in t["blocks"]
+    )
+    print("reply blocks (type, tool, error): count")
+    for kind, count in sorted(kinds.items()):
+        print(f"  {kind}: {count}")
+
     sample = next((t for t in transcripts if t["parsed"]), transcripts[0] if transcripts else None)
     if sample:
         print(f"\n=== full reply of one sample ({sample['market_id']}, {sample['persona']}) ===")

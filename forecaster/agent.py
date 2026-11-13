@@ -76,6 +76,24 @@ def parse_forecast(text: str, persona: str) -> Sample | None:
     )
 
 
+def describe_block(block: Any) -> dict[str, Any]:
+    """A short summary of one content block of a reply, for the transcript:
+    its type, the tool name and (shortened) input if it is a tool call, and the
+    error code if it is a failed tool result."""
+    out: dict[str, Any] = {"type": getattr(block, "type", None)}
+    if getattr(block, "name", None):
+        out["name"] = block.name
+    if getattr(block, "input", None):
+        out["input"] = str(block.input)[:500]
+    content = getattr(block, "content", None)
+    error = getattr(content, "error_code", None)
+    if error:
+        out["error"] = error
+    elif isinstance(content, list):
+        out["items"] = len(content)
+    return out
+
+
 class RetriesExhausted(Exception):
     """A request kept failing with a retryable error."""
 
@@ -145,6 +163,7 @@ class Agent:
             {"role": "user", "content": user_message(q, persona_text, now)}
         ]
         texts: list[str] = []
+        blocks: list[dict[str, Any]] = []
         stop_reason = None
         used = {"requests": 0, "input_tokens": 0, "cached_tokens": 0, "output_tokens": 0,
                 "searches": 0, "cost_usd": 0.0}  # fmt: skip
@@ -155,6 +174,8 @@ class Agent:
                 for key, value in self._record_usage(response.usage).items():
                     used[key] += value
                 texts += [b.text for b in response.content if b.type == "text"]
+                if self.transcripts is not None:
+                    blocks += [describe_block(b) for b in response.content if b.type != "text"]
                 stop_reason = response.stop_reason
                 # A long search turn can be paused by the API; sending the
                 # paused reply back unchanged resumes it.
@@ -180,6 +201,7 @@ class Agent:
                         "stop_reason": stop_reason,
                         "parsed": sample is not None,
                         "text": text,
+                        "blocks": blocks,
                         **used,
                     }
                 )

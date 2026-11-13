@@ -235,6 +235,25 @@ def test_cached_tokens_are_priced_at_the_cache_rates() -> None:
     assert agent.transcripts is not None and agent.transcripts[0]["cached_tokens"] == 80_000
 
 
+def test_transcript_summarises_tool_calls_and_failed_results() -> None:
+    r = reply("x " + GOOD, searches=1)
+    r.content.insert(
+        1,
+        SimpleNamespace(
+            type="web_search_tool_result",
+            content=SimpleNamespace(error_code="max_uses_exceeded"),
+        ),
+    )
+    r.content.insert(1, SimpleNamespace(type="server_tool_use", name="web_search", input={"query": "q"}))
+    agent, _ = make_agent(r)
+    agent.forecast(make_question(), 1, NOW)
+    assert agent.transcripts is not None
+    blocks = agent.transcripts[0]["blocks"]
+    assert {"type": "server_tool_use", "name": "web_search", "input": "{'query': 'q'}"} in blocks
+    assert {"type": "web_search_tool_result", "error": "max_uses_exceeded"} in blocks
+    assert all(b["type"] != "text" for b in blocks)
+
+
 def test_parse_failure_drops_the_sample_but_still_costs() -> None:
     agent, _ = make_agent([reply(), reply("No block here.", stop_reason="max_tokens"), reply()])
     samples = agent.forecast(make_question(), 3, NOW)

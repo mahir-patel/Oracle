@@ -5,8 +5,9 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S4 built, not tagged. The first live run cost $4.65 for ONE question (see Findings); a
-one-sample diagnostic run is next, then a cost decision with the user.** `prompts.py` and the real `Agent` are in with mocked tests (194
+**S4 built, not tagged. The first live run cost $4.65 for ONE question (see Findings); the
+one-sample diagnostic cost $1.10 and caching saved nothing. Next: find why searches fail
+(one more one-sample run), then a cost decision with the user.** `prompts.py` and the real `Agent` are in with mocked tests (194
 passing). Waiting for the user to run ONE live forecast on 3 questions:
 `.venv/bin/python scripts/live_check.py` (needs `ANTHROPIC_API_KEY`; output is saved to
 `data/cache/live_check.json`). Then: read the cost, latency, parse rate and stop reasons,
@@ -270,6 +271,28 @@ account ran out of credit on question 2 (HTTP 400, raised as designed).
 - Other levers, none applied (each needs the user's yes): `N_SAMPLES` 5 -> 3,
   `MAX_WEB_SEARCHES` 4 -> 2, an `effort` setting, `max_content_tokens`-style limits if the
   tool has one (check the docs).
+
+### S4 live check, one-sample diagnostic (2026-11-13, caching on)
+
+Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_view`, 1 sample.
+
+- **Cost $1.099 for ONE sample**: input 104,450 tokens = $0.836 (76%), output 5,582 tokens =
+  $0.223 (20%), 4 searches = $0.04. So 5 samples are about $5.50 per question, in line with
+  the first run ($4.65).
+- **Caching saved nothing: 0 cached tokens, 0 cache writes.** It does not apply between the
+  search steps inside one request. It stays on (free, helps resumed turns) but is not a fix.
+- Latency 163 s for the one sample. 1 request, stop reason `end_turn`, parsed 1 of 1.
+- Output 5,582 > `max_tokens` 4,000: the limit is evidently not on the whole server-side
+  turn. No truncation seen in 6 samples so far.
+- **Quality problem:** the reply says only its first two searches returned results and
+  "every later one failed on a tool limit", while 4 searches were billed. Cause unknown; the
+  transcript now records every reply block (tool calls, inputs, error codes) to find it.
+  Suspects: `max_uses` 4 being hit by searches issued from the filtering code, or a
+  code-execution limit.
+- Forecast 0.08 vs market 0.357 (final 0.132, paper bet NO, 75 contracts). One sample, no
+  conclusion to draw.
+- **Where this leaves cost:** about $5.50 a question as specified; $2.75 with the Batch API.
+  The $0.10-0.50 target is not reachable with 5 searching Fable samples.
 
 ## Known issues
 
