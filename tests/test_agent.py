@@ -228,6 +228,10 @@ def test_parse_failure_drops_the_sample_but_still_costs() -> None:
     assert agent.transcripts is not None
     failed = [t for t in agent.transcripts if not t["parsed"]]
     assert [(t["stop_reason"], t["text"]) for t in failed] == [("max_tokens", "No block here.")]
+    # Each pass records what it used, so a costly run can be traced to its cause.
+    assert sum(t["cost_usd"] for t in agent.transcripts) == pytest.approx(agent.cost_usd)
+    assert sum(t["input_tokens"] for t in agent.transcripts) == agent.input_tokens
+    assert all(t["requests"] == 1 for t in agent.transcripts)
 
 
 def test_refusal_counts_as_a_parse_failure() -> None:

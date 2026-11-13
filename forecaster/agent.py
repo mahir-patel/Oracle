@@ -146,10 +146,14 @@ class Agent:
         ]
         texts: list[str] = []
         stop_reason = None
+        used = {"requests": 0, "input_tokens": 0, "cached_tokens": 0, "output_tokens": 0,
+                "searches": 0, "cost_usd": 0.0}  # fmt: skip
         try:
             for _ in range(MAX_CONTINUATIONS + 1):
                 response = self._request(messages)
-                self._record_usage(response.usage)
+                used["requests"] += 1
+                for key, value in self._record_usage(response.usage).items():
+                    used[key] += value
                 texts += [b.text for b in response.content if b.type == "text"]
                 stop_reason = response.stop_reason
                 # A long search turn can be paused by the API; sending the
@@ -176,6 +180,7 @@ class Agent:
                         "stop_reason": stop_reason,
                         "parsed": sample is not None,
                         "text": text,
+                        **used,
                     }
                 )
         return sample
@@ -202,13 +207,15 @@ class Agent:
                 self.sleep(BACKOFF_SECONDS * 2**attempt)
         raise RetriesExhausted(str(last)) from last
 
-    def _record_usage(self, usage: Any) -> None:
+    def _record_usage(self, usage: Any) -> dict[str, float]:
         """Tokens at the list prices plus the per-search fee. Cached input tokens,
-        if any, are charged at the full input price, which can only overstate."""
+        if any, are charged at the full input price, which can only overstate.
+        Returns what this one response used."""
+        cached = getattr(usage, "cache_read_input_tokens", 0) or 0
         tokens_in = (
             (usage.input_tokens or 0)
             + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
-            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+            + cached
         )
         tokens_out = usage.output_tokens or 0
         server_tools = getattr(usage, "server_tool_use", None)
@@ -223,6 +230,13 @@ class Agent:
             self.output_tokens += tokens_out
             self.n_searches += searches
             self.cost_usd += cost
+        return {
+            "input_tokens": tokens_in,
+            "cached_tokens": cached,
+            "output_tokens": tokens_out,
+            "searches": searches,
+            "cost_usd": cost,
+        }
 
 
 class FakeAgent:

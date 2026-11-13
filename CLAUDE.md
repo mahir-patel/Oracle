@@ -5,7 +5,8 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S4 built, not tagged.** `prompts.py` and the real `Agent` are in with mocked tests (194
+**S4 built, not tagged. The first live run cost $4.65 for ONE question (see Findings); a
+one-sample diagnostic run is next, then a cost decision with the user.** `prompts.py` and the real `Agent` are in with mocked tests (194
 passing). Waiting for the user to run ONE live forecast on 3 questions:
 `.venv/bin/python scripts/live_check.py` (needs `ANTHROPIC_API_KEY`; output is saved to
 `data/cache/live_check.json`). Then: read the cost, latency, parse rate and stop reasons,
@@ -239,6 +240,22 @@ the extremized training forecasts; score the next 5,000 questions with and witho
   1000 is a judgement call. Real LLM miscalibration may not be logit-linear. Keep the rule:
   enable only with a large history and keep it only if the live report shows it helps.
 - Best single run was a -0.00012 improvement (seed 8, n = 3000): noise.
+
+### S4 live check, first attempt (2026-11-12): far over the cost target
+
+One Polymarket question ("Will Bitcoin reach $76,000 November 9-15?"), 5 samples, then the
+account ran out of credit on question 2 (HTTP 400, raised as designed).
+
+- **Cost $4.645 for one question** against a target of $0.10-0.50 and a $5 run cap.
+- Latency 88 s; 20 searches (every sample used all 4); parse failures 0 of 5.
+- Samples 0.09 / 0.13 / 0.07 / 0.15 / 0.17, raw 0.121, final 0.062, market 0.055, no bet.
+- Token counts were lost (the script saved only at the end; fixed). Bound: searches are
+  $0.20, output is at most 5 x 4,000 tokens = $0.80 unless turns were paused, so **input is
+  at least about $3.6, i.e. 90,000+ input tokens per sample**. Search results are the cost.
+- Not yet known: tokens per pass, cached share, stop reasons. The next run prints them.
+- Levers, none applied yet (each needs the user's yes): `N_SAMPLES` 5 -> 3,
+  `MAX_WEB_SEARCHES` 4 -> 2, an `effort` setting, `max_content_tokens`-style limits if the
+  tool has one (check the docs).
 
 ## Known issues
 

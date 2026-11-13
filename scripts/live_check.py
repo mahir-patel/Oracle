@@ -1,9 +1,10 @@
 """S4 gate: ONE live forecast on 3 questions. Spends real money (API key needed).
 
-    ANTHROPIC_API_KEY=... .venv/bin/python scripts/live_check.py
+    ANTHROPIC_API_KEY=... .venv/bin/python scripts/live_check.py [n_questions]
 
 Nothing is written to the ledger. The full output, including every sample's
-reply text, is saved to data/cache/live_check.json (not committed).
+reply text and token use, is saved to data/cache/live_check.json (not
+committed), also when the run stops on an error.
 The `forecast` command replaces this script in S5.
 """
 
@@ -19,7 +20,7 @@ from pathlib import Path
 
 from forecaster.agent import Agent
 from forecaster.calibrate import Calibrator
-from forecaster.config import load_config
+from forecaster.config import Config, load_config
 from forecaster.markets import fetch_open, make_client
 from forecaster.models import Question
 from forecaster.pipeline import Params, forecast_question, select_questions
@@ -28,7 +29,7 @@ PICKS = {"polymarket": 2, "kalshi": 1}
 OUT = Path("data/cache/live_check.json")
 
 
-def pick_questions(now: datetime) -> list[Question]:
+def pick_questions(now: datetime, limit: int) -> list[Question]:
     config = load_config()
     rng = random.Random(now.strftime("%Y-%m-%d"))
     picked: list[Question] = []
@@ -40,7 +41,8 @@ def pick_questions(now: datetime) -> list[Question]:
             selected = select_questions(fetched, now, config)
             print(f"{venue}: {len(fetched)} fetched, {len(selected)} selected")
             picked += rng.sample(selected, min(count, len(selected)))
-    return picked
+    rng.shuffle(picked)
+    return picked[:limit]
 
 
 def main() -> int:
@@ -49,7 +51,8 @@ def main() -> int:
         return 2
     config = load_config()
     now = datetime.now(UTC)
-    questions = pick_questions(now)
+    limit = int(sys.argv[1]) if len(sys.argv) > 1 else sum(PICKS.values())
+    questions = pick_questions(now, limit)
     if not questions:
         print("no eligible markets")
         return 1
@@ -57,26 +60,32 @@ def main() -> int:
     agent = Agent(config, keep_transcripts=True)
     params = Params.load(config.params_path, config)
     calibrator = Calibrator.load(config.calibrator_path)
-    rows = []
-    for q in questions:
-        if agent.budget_exhausted:
-            print("spending cap reached, stopping")
-            break
-        print(f"\n[{q.venue}] {q.title}\n  closes {q.close_time:%Y-%m-%d}  {q.url}")
-        f = forecast_question(q, agent, calibrator, params, datetime.now(UTC), config)
-        if f is None:
-            print("  no valid sample")
-            continue
-        probs = "  ".join(f"{s.persona}={s.probability:.2f}" for s in f.samples)
-        print(f"  samples: {probs}")
-        print(
-            f"  raw {f.raw_prob:.3f}  final {f.final_prob:.3f}  market {f.market_prob:.3f}"
-            f"  | cost ${f.cost_usd:.3f}  latency {f.latency_s:.0f}s"
-            f"  searches {f.n_searches}  parse failures {f.parse_failures}"
-        )
-        print(f"  paper bet: {f.bet.get('side') or 'none'} ({f.bet.get('reason', '')})")
-        rows.append(f.to_dict())
+    rows: list[dict] = []
+    try:
+        for q in questions:
+            if agent.budget_exhausted:
+                print("spending cap reached, stopping")
+                break
+            print(f"\n[{q.venue}] {q.title}\n  closes {q.close_time:%Y-%m-%d}  {q.url}")
+            f = forecast_question(q, agent, calibrator, params, datetime.now(UTC), config)
+            if f is None:
+                print("  no valid sample")
+                continue
+            probs = "  ".join(f"{s.persona}={s.probability:.2f}" for s in f.samples)
+            print(f"  samples: {probs}")
+            print(
+                f"  raw {f.raw_prob:.3f}  final {f.final_prob:.3f}  market {f.market_prob:.3f}"
+                f"  | cost ${f.cost_usd:.3f}  latency {f.latency_s:.0f}s"
+                f"  searches {f.n_searches}  parse failures {f.parse_failures}"
+            )
+            print(f"  paper bet: {f.bet.get('side') or 'none'} ({f.bet.get('reason', '')})")
+            rows.append(f.to_dict())
+    finally:
+        report(agent, config, rows, now)
+    return 0
 
+
+def report(agent: Agent, config: Config, rows: list[dict], now: datetime) -> None:
     transcripts = agent.transcripts or []
     passes = len(transcripts) + agent.api_failures
     parsed = sum(t["parsed"] for t in transcripts)
@@ -87,6 +96,13 @@ def main() -> int:
     print(f"parse rate      {parsed}/{passes}")
     print(f"api failures    {agent.api_failures}")
     print(f"stop reasons    {dict(Counter(t['stop_reason'] for t in transcripts))}")
+
+    print("per pass (persona: requests, input [cached] / output tokens, searches, cost):")
+    for t in transcripts:
+        print(
+            f"  {t['persona']:<18} {t['requests']}  {t['input_tokens']:>8,} [{t['cached_tokens']:,}]"
+            f" / {t['output_tokens']:>6,}  {t['searches']}  ${t['cost_usd']:.3f}"
+        )
 
     sample = next((t for t in transcripts if t["parsed"]), transcripts[0] if transcripts else None)
     if sample:
@@ -112,7 +128,6 @@ def main() -> int:
         )
     )
     print(f"\nsaved to {OUT}")
-    return 0
 
 
 if __name__ == "__main__":
