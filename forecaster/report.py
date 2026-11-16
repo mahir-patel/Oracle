@@ -176,6 +176,7 @@ background:var(--card);margin:20px 0}
 table{border-collapse:collapse;width:100%;font-size:.93rem}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600;white-space:nowrap}
+td:first-child{min-width:15rem}
 td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 a{color:var(--accent)}
 code{font:.88em ui-monospace,Menlo,monospace}
@@ -188,7 +189,7 @@ padding-top:14px}
 
 def calibration_svg(table: Sequence[dict[str, Any]]) -> str:
     """Observed rate against mean forecast, one dot per bin sized by its count."""
-    size, pad = 320, 36
+    size, pad = 340, 46
     span = size - 2 * pad
 
     def x(p: float) -> float:

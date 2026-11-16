@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle: AI forecasts vs prediction markets</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1c1b19;--muted:#6b6862;--line:#e3e0d8;--card:#fff;--accent:#1f5fbf}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--fg:#ecebe6;--muted:#9a978f;
+--line:#2e2d2a;--card:#1c1c1a;--accent:#7fb0ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 48px}
+h1{font-size:1.7rem;margin:0 0 4px}
+h2{font-size:1.1rem;margin:36px 0 10px}
+p{margin:8px 0}
+.muted{color:var(--muted)}
+.headline{font-size:1.15rem;padding:16px;border:1px solid var(--line);border-radius:10px;
+background:var(--card);margin:20px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.tile b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
+.tile span{color:var(--muted);font-size:.85rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;white-space:nowrap}
+td:first-child{min-width:15rem}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+a{color:var(--accent)}
+code{font:.88em ui-monospace,Menlo,monospace}
+svg{max-width:420px;width:100%;height:auto;display:block}
+svg text{fill:var(--muted);font:11px system-ui,sans-serif}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);
+padding-top:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>Oracle</h1>
+<p class="muted">An AI forecaster with web search, scored against Kalshi and Polymarket prices.
+Every forecast is logged before the outcome is known. Paper trading only.</p>
+<p class="headline">Not enough resolved questions yet (0 scored, 10 needed).</p>
+
+<div class="tiles"><div class="tile"><b>0</b><span>resolved</span></div><div class="tile"><b>0</b><span>open</span></div><div class="tile"><b>$+0.00</b><span>paper P&L, 0 bets</span></div><div class="tile"><b>$0.00</b><span>API cost</span></div></div>
+
+<h2>Calibration</h2>
+<p class="muted">Of the questions Oracle gave about X%, how many happened? Dots on the dashed
+line are perfectly calibrated; bigger dots hold more questions.</p>
+<p class="muted">Appears once questions have resolved.</p>
+
+<h2>Open forecasts</h2>
+<p class="muted">No open forecasts.</p>
+
+<h2>How to verify</h2>
+<p>Each forecast is one line of <a href="https://github.com/mahir-patel/Oracle/blob/main/data/ledger.jsonl"><code>data/ledger.jsonl</code></a>.
+Every line carries the hash of the line before it, so editing or deleting an old forecast
+breaks the chain. Clone the repository and run <code>oracle verify</code> to recompute it.
+The git history of that file shows when each forecast was committed.</p>
+
+<footer>
+<p>Model: none yet. Questions resolved before 2026-07-01 are never scored.
+Updated 2026-11-16 04:41 UTC.</p>
+<p>Not financial advice. No real money is traded; paper results ignore slippage and
+market impact.</p>
+</footer>
+</main>
+</body>
+</html>
