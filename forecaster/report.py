@@ -155,35 +155,52 @@ def write_report(report: Report, path: str | Path) -> None:
 # ---------- the public page ----------
 
 CSS = """
-:root{--bg:#fbfaf7;--fg:#1c1b19;--muted:#6b6862;--line:#e3e0d8;--card:#fff;--accent:#1f5fbf}
-@media (prefers-color-scheme:dark){:root{--bg:#141413;--fg:#ecebe6;--muted:#9a978f;
---line:#2e2d2a;--card:#1c1c1a;--accent:#7fb0ff}}
+:root{color-scheme:light dark;--bg:#f5f5f7;--fg:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.1);
+--card:#fff;--accent:#06c;--press:rgba(0,0,0,.04)}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--fg:#f5f5f7;--muted:#98989d;
+--line:rgba(255,255,255,.14);--card:#1c1c1e;--accent:#2997ff;--press:rgba(255,255,255,.06)}}
+@media (prefers-contrast:more){:root{--muted:var(--fg);--line:var(--fg)}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);
-font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:860px;margin:0 auto;padding:32px 16px 48px}
-h1{font-size:1.7rem;margin:0 0 4px}
-h2{font-size:1.1rem;margin:36px 0 10px}
-p{margin:8px 0}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;
+font:100%/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",sans-serif}
+main{max-width:54rem;margin:0 auto;padding:3.5rem 1rem 4rem;animation:arrive .5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes arrive{from{opacity:0;transform:translateY(.5rem)}}
+h1{font-size:clamp(2.25rem,6vw,3.5rem);line-height:1.05;letter-spacing:-.025em;font-weight:700;
+margin:0 0 .75rem}
+h2{font-size:1.5rem;line-height:1.15;letter-spacing:-.015em;font-weight:600;margin:3.5rem 0 .5rem}
+p{margin:.5rem 0}
 .muted{color:var(--muted)}
-.headline{font-size:1.15rem;padding:16px;border:1px solid var(--line);border-radius:10px;
-background:var(--card);margin:20px 0}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.tile{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
-.tile b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
-.tile span{color:var(--muted);font-size:.85rem}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:.93rem}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:600;white-space:nowrap}
+h1+.muted{font-size:1.1875rem;line-height:1.4;max-width:38rem}
+.headline,.tile,.scroll,.plot{background:var(--card);border-radius:1.125rem}
+.headline{font-size:1.3125rem;line-height:1.35;letter-spacing:-.01em;font-weight:600;
+padding:1.5rem;margin:2rem 0 .75rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.75rem}
+.tile{padding:1.125rem 1.25rem}
+.tile b{display:block;font-size:1.75rem;line-height:1.15;letter-spacing:-.02em;font-weight:600;
+font-variant-numeric:tabular-nums}
+.tile span{color:var(--muted);font-size:.8125rem}
+.plot{padding:1rem;margin-top:1rem}
+.scroll{overflow-x:auto;margin-top:1rem;padding:.25rem 0}
+table{border-collapse:collapse;width:100%;font-size:.9375rem;line-height:1.4}
+th,td{text-align:left;padding:.75rem 1.25rem;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background-color .2s ease}
+tbody tr:hover{background:var(--press)}
+th{color:var(--muted);font-size:.75rem;font-weight:600;white-space:nowrap}
 td:first-child{min-width:15rem}
 td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-a{color:var(--accent)}
-code{font:.88em ui-monospace,Menlo,monospace}
-svg{max-width:420px;width:100%;height:auto;display:block}
-svg text{fill:var(--muted);font:11px system-ui,sans-serif}
-footer{margin-top:40px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);
-padding-top:14px}
+a{color:var(--accent);text-decoration:none;transition:opacity .1s ease-out}
+a:hover{text-decoration:underline}
+a:active{opacity:.6}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:.25rem}
+code{font:.8125rem ui-monospace,"SF Mono",Menlo,monospace;color:var(--muted)}
+p code{color:inherit}
+svg{max-width:26rem;width:100%;height:auto;display:block;margin:0 auto}
+svg text{fill:var(--muted);font:11px -apple-system,system-ui,sans-serif}
+footer{margin-top:4rem;color:var(--muted);font-size:.8125rem;border-top:1px solid var(--line);
+padding-top:1rem}
+@media (prefers-reduced-motion:reduce){main{animation:none}tbody tr,a{transition:none}}
 """
 
 
@@ -303,7 +320,7 @@ Every forecast is logged before the outcome is known. Paper trading only.</p>
 <h2>Calibration</h2>
 <p class="muted">Of the questions Oracle gave about X%, how many happened? Dots on the dashed
 line are perfectly calibrated; bigger dots hold more questions.</p>
-{calibration}
+<div class="plot">{calibration}</div>
 
 <h2>Open forecasts</h2>
 {table}
