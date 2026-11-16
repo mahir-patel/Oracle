@@ -43,7 +43,7 @@ padding-top:14px}
 Every forecast is logged before the outcome is known. Paper trading only.</p>
 <p class="headline">Not enough resolved questions yet (0 scored, 10 needed).</p>
 
-<div class="tiles"><div class="tile"><b>0</b><span>resolved</span></div><div class="tile"><b>0</b><span>open</span></div><div class="tile"><b>$+0.00</b><span>paper P&L, 0 bets</span></div><div class="tile"><b>$0.00</b><span>API cost</span></div></div>
+<div class="tiles"><div class="tile"><b>0</b><span>resolved</span></div><div class="tile"><b>5</b><span>open</span></div><div class="tile"><b>$+0.00</b><span>paper P&L, 0 bets</span></div><div class="tile"><b>$0.73</b><span>API cost</span></div></div>
 
 <h2>Calibration</h2>
 <p class="muted">Of the questions Oracle gave about X%, how many happened? Dots on the dashed
@@ -51,7 +51,7 @@ line are perfectly calibrated; bigger dots hold more questions.</p>
 <p class="muted">Appears once questions have resolved.</p>
 
 <h2>Open forecasts</h2>
-<p class="muted">No open forecasts.</p>
+<div class="scroll"><table><thead><tr><th>Question</th><th>Oracle</th><th>Market</th><th>Closes</th><th>Ledger hash</th></tr></thead><tbody><tr><td><a href="https://polymarket.com/market/highest-temperature-in-warsaw-on-november-17-2026-7c" rel="noopener">Will the highest temperature in Warsaw be 7°C on November 17?</a></td><td class="n">22%</td><td class="n">42%</td><td class="n">2026-11-17</td><td><code>bc8c380c49</code></td></tr><tr><td><a href="https://polymarket.com/market/ucl-atm-vf-2026-11-25-vf" rel="noopener">Will Viking FK win on 2026-11-25?</a></td><td class="n">6%</td><td class="n">4%</td><td class="n">2026-11-25</td><td><code>a6dfc032a9</code></td></tr><tr><td><a href="https://polymarket.com/market/will-ho-hsin-chun-win-the-next-taichung-mayor-election-20260813125857402" rel="noopener">Will Ho Hsin-chun win the next Taichung Mayor election?</a></td><td class="n">53%</td><td class="n">23%</td><td class="n">2026-11-29</td><td><code>3fbb9da1a1</code></td></tr><tr><td><a href="https://polymarket.com/market/will-the-houthis-successfully-target-shipping-by-november-30-2026" rel="noopener">Will the Houthis successfully target shipping by November 30, 2026?</a></td><td class="n">8%</td><td class="n">15%</td><td class="n">2026-12-01</td><td><code>8c6721b604</code></td></tr><tr><td><a href="https://kalshi.com/markets/KXCPICOREYOY-26DEC" rel="noopener">Will the rate of core CPI inflation be above 3.2% for the year ending in December 2026?</a></td><td class="n">6%</td><td class="n">6%</td><td class="n">2027-01-13</td><td><code>039e56079c</code></td></tr></tbody></table></div>
 
 <h2>How to verify</h2>
 <p>Each forecast is one line of <a href="https://github.com/mahir-patel/Oracle/blob/main/data/ledger.jsonl"><code>data/ledger.jsonl</code></a>.
@@ -60,8 +60,8 @@ breaks the chain. Clone the repository and run <code>oracle verify</code> to rec
 The git history of that file shows when each forecast was committed.</p>
 
 <footer>
-<p>Model: none yet. Questions resolved before 2026-07-01 are never scored.
-Updated 2026-11-16 04:41 UTC.</p>
+<p>Model: claude-haiku-5-5. Questions resolved before 2026-07-01 are never scored.
+Updated 2026-11-16 04:54 UTC.</p>
 <p>Not financial advice. No real money is traded; paper results ignore slippage and
 market impact.</p>
 </footer>
