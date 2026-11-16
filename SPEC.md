@@ -161,7 +161,7 @@ Personas (one per sample, cycled):
 - `resolution_lawyer`: Focus hardest on the exact resolution wording and edge cases in how it will be judged.
 - `status_quo`: Ask what happens if nothing changes, then estimate the chance of a change before the deadline.
 
-User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION RULES: {rules, or "(none provided — infer from the question, and flag the ambiguity)"}` / `CLOSES: {close_time}` / `ANGLE FOR THIS PASS: {persona text}`.
+User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION RULES: {rules, or "(none provided — infer from the question, and flag the ambiguity)"}` / `CLOSES: {close_time}` / `SEARCH BUDGET: {MAX_WEB_SEARCHES} web searches in total; any beyond that fail. Plan them before you search.` / `ANGLE FOR THIS PASS: {persona text}`. The budget line was added after the S4 live check, where models fired more searches than allowed and forecast on the one page that came back.
 
 *Why personas instead of temperature:* they give real diversity of reasoning, which is what makes ensembling help. Newer models may also restrict sampling parameters.
 

@@ -163,7 +163,7 @@ class Agent:
         if self.budget_exhausted:
             return None
         messages: list[dict[str, Any]] = [
-            {"role": "user", "content": user_message(q, persona_text, now)}
+            {"role": "user", "content": user_message(q, persona_text, now, self.config.max_web_searches)}
         ]
         texts: list[str] = []
         blocks: list[dict[str, Any]] = []

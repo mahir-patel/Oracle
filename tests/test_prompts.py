@@ -43,24 +43,26 @@ def test_personas_cycle_in_order() -> None:
 
 
 def test_user_message_layout() -> None:
-    text = prompts.user_message(make_question(), prompts.PERSONAS["status_quo"], NOW)
+    text = prompts.user_message(make_question(), prompts.PERSONAS["status_quo"], NOW, 3)
     assert text.splitlines() == [
         "Today is 2026-11-11 09:30 UTC.",
         "QUESTION: Will the Fed cut rates in December?",
         "RESOLUTION RULES: Resolves YES if the rate is cut.",
         "CLOSES: 2026-12-16 19:00 UTC",
+        "SEARCH BUDGET: 3 web searches in total; any beyond that fail. "
+        "Plan them before you search.",
         f"ANGLE FOR THIS PASS: {prompts.PERSONAS['status_quo']}",
     ]
 
 
 def test_user_message_flags_missing_rules() -> None:
-    text = prompts.user_message(make_question(rules="  "), "angle", NOW)
+    text = prompts.user_message(make_question(rules="  "), "angle", NOW, 3)
     assert "RESOLUTION RULES: (none provided — infer from the question" in text
 
 
 def test_user_message_never_contains_the_market_price() -> None:
     """Rule 2: the agent forms its view without seeing the price."""
     q = make_question()
-    text = prompts.user_message(q, "angle", NOW) + prompts.SYSTEM_PROMPT
+    text = prompts.user_message(q, "angle", NOW, 3) + prompts.SYSTEM_PROMPT
     for hidden in ("0.613", "0.647", "0.63", "61", "64", "12345", "kalshi.com"):
         assert hidden not in text

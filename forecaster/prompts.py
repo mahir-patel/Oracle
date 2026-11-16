@@ -3,7 +3,8 @@
 These texts are tunable parameters (SPEC 6.2). Change one only as its own
 commit, and judge the change by later out-of-sample skill, never by feel.
 
-The user message is built from the title, the rules and the close time only.
+The user message is built from the title, the rules, the close time and the
+search budget only.
 The market price is never included (rule 2).
 """
 
@@ -59,7 +60,7 @@ def persona_for(index: int) -> tuple[str, str]:
     return name, PERSONAS[name]
 
 
-def user_message(q: Question, persona_text: str, now: datetime) -> str:
+def user_message(q: Question, persona_text: str, now: datetime, max_searches: int) -> str:
     now = ensure_utc(now)
     return "\n".join(
         [
@@ -67,6 +68,10 @@ def user_message(q: Question, persona_text: str, now: datetime) -> str:
             f"QUESTION: {q.title}",
             f"RESOLUTION RULES: {q.rules.strip() or NO_RULES}",
             f"CLOSES: {q.close_time.strftime('%Y-%m-%d %H:%M')} UTC",
+            # Without this the model fires several searches at once and the ones
+            # over the limit fail, leaving it with thin evidence.
+            f"SEARCH BUDGET: {max_searches} web searches in total; any beyond that fail. "
+            "Plan them before you search.",
             f"ANGLE FOR THIS PASS: {persona_text}",
         ]
     )
