@@ -4,102 +4,418 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oracle: AI forecasts vs prediction markets</title>
+<meta name="description" content="An AI forecaster scored against Kalshi and Polymarket prices, with every forecast logged before the outcome is known.">
 <style>
-:root{color-scheme:light dark;--bg:#f5f5f7;--fg:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.1);
---card:#fff;--accent:#06c;--press:rgba(0,0,0,.04)}
-@media (prefers-color-scheme:dark){:root{--bg:#000;--fg:#f5f5f7;--muted:#98989d;
---line:rgba(255,255,255,.14);--card:#1c1c1e;--accent:#2997ff;--press:rgba(255,255,255,.06)}}
+:root{color-scheme:light dark;--bg:#f6f7f8;--surface:#fdfdfd;--fg:#15171c;--muted:#5b616e;
+--line:rgba(21,23,28,.11);--accent:#0a7a58;--on-accent:#fdfdfd;--soft:rgba(10,122,88,.12);
+--nav:rgba(246,247,248,.78);--r:14px;--ease:cubic-bezier(.16,1,.3,1)}
+@media (prefers-color-scheme:dark){:root{--bg:#0c0d10;--surface:#15171b;--fg:#eceef2;
+--muted:#939aa8;--line:rgba(236,238,242,.13);--accent:#3fd19c;--on-accent:#0c0d10;
+--soft:rgba(63,209,156,.14);--nav:rgba(12,13,16,.72)}}
 @media (prefers-contrast:more){:root{--muted:var(--fg);--line:var(--fg)}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;
-font:100%/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",sans-serif}
-main{max-width:54rem;margin:0 auto;padding:3.5rem 1rem 4rem;animation:arrive .5s cubic-bezier(.2,.8,.2,1) both}
-@keyframes arrive{from{opacity:0;transform:translateY(.5rem)}}
-h1{font-size:clamp(2.25rem,6vw,3.5rem);line-height:1.05;letter-spacing:-.025em;font-weight:700;
-margin:0 0 .75rem}
-h2{font-size:1.5rem;line-height:1.15;letter-spacing:-.015em;font-weight:600;margin:3.5rem 0 .5rem}
-p{margin:.5rem 0}
+font:100%/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:72rem;margin:0 auto;padding:0 1.25rem}
+a{color:var(--accent)}
+code,.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+h1,h2,h3,p{margin:0}
+h1{font-size:clamp(2.25rem,5.2vw,4rem);line-height:1.02;letter-spacing:-.035em;font-weight:680}
+h2{font-size:clamp(1.6rem,3vw,2.25rem);line-height:1.1;letter-spacing:-.025em;font-weight:650}
+.lede{font-size:1.125rem;line-height:1.5;color:var(--muted);max-width:34rem}
 .muted{color:var(--muted)}
-h1+.muted{font-size:1.1875rem;line-height:1.4;max-width:38rem}
-.headline,.tile,.scroll,.plot{background:var(--card);border-radius:1.125rem}
-.headline{font-size:1.3125rem;line-height:1.35;letter-spacing:-.01em;font-weight:600;
-padding:1.5rem;margin:2rem 0 .75rem}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.75rem}
-.tile{padding:1.125rem 1.25rem}
-.tile b{display:block;font-size:1.75rem;line-height:1.15;letter-spacing:-.02em;font-weight:600;
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+
+/* navigation */
+.nav{position:sticky;top:0;z-index:10;background:var(--nav);border-bottom:1px solid var(--line);
+backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%)}
+@media (prefers-reduced-transparency:reduce){.nav{background:var(--bg);backdrop-filter:none;
+-webkit-backdrop-filter:none}}
+.nav .wrap{display:flex;align-items:center;gap:1.5rem;height:3.75rem}
+.brand{font-weight:700;letter-spacing:-.02em;font-size:1.0625rem}
+.tabs{display:none;gap:.25rem;overflow-x:auto;scrollbar-width:none;margin-left:auto}
+.js .tabs{display:flex}
+.tabs::-webkit-scrollbar{display:none}
+.tab,.chip,.btn{font:inherit;cursor:pointer;border-radius:999px;border:1px solid transparent;
+white-space:nowrap;transition:background-color .2s var(--ease),color .2s var(--ease),
+transform .12s var(--ease),border-color .2s var(--ease)}
+.tab{flex:none;background:none;color:var(--muted);padding:.4rem .85rem;font-size:.9375rem;font-weight:550}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected=true]{background:var(--fg);color:var(--bg)}
+.tab:active,.chip:active,.btn:active{transform:scale(.97)}
+
+/* panels */
+.panel{padding:3.5rem 0 4.5rem}
+.panel+.panel{border-top:1px solid var(--line)}
+.js .panel+.panel{border-top:0}
+.js .panel.enter{animation:rise .5s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(.75rem)}}
+.sub{margin-top:.75rem}
+
+/* overview */
+.hero{display:grid;gap:2.5rem;align-items:center}
+@media (min-width:60rem){.hero{grid-template-columns:1.15fr .85fr;gap:4rem}}
+.hero .lede{margin-top:1.25rem}
+.cta{display:none;gap:.75rem;margin-top:2rem;flex-wrap:wrap}
+.js .cta{display:flex}
+.btn{padding:.7rem 1.25rem;font-weight:600;font-size:1rem;background:var(--accent);
+color:var(--on-accent);text-decoration:none}
+.btn.ghost{background:none;color:var(--fg);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--fg)}
+.feature{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+padding:1.5rem;box-shadow:0 18px 50px -28px rgba(10,60,45,.35)}
+.eyebrow{font-size:.75rem;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+color:var(--muted)}
+.feature h3{font-size:1.1875rem;line-height:1.3;letter-spacing:-.012em;margin:.5rem 0 1.5rem;
+font-weight:620}
+.pair{display:flex;justify-content:space-between;margin-top:1rem;font-size:.875rem;
+color:var(--muted)}
+.pair b{display:block;font-size:2.25rem;line-height:1;letter-spacing:-.03em;color:var(--fg);
+font-variant-numeric:tabular-nums;font-weight:650}
+.pair .o b{color:var(--accent)}
+.pair .m{text-align:right}
+.verdict{margin-top:4.5rem;font-size:clamp(1.25rem,2.4vw,1.75rem);line-height:1.3;
+letter-spacing:-.02em;font-weight:600;max-width:52rem}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);margin-top:2rem;border-top:1px solid var(--line)}
+@media (min-width:44rem){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{padding:1.25rem 1rem 0 0}
+.stat b{display:block;font-size:2rem;line-height:1.1;letter-spacing:-.03em;font-weight:650;
 font-variant-numeric:tabular-nums}
-.tile span{color:var(--muted);font-size:.8125rem}
-.plot{padding:1rem;margin-top:1rem}
-.scroll{overflow-x:auto;margin-top:1rem;padding:.25rem 0}
-table{border-collapse:collapse;width:100%;font-size:.9375rem;line-height:1.4}
-th,td{text-align:left;padding:.75rem 1.25rem;border-bottom:1px solid var(--line);vertical-align:top}
-tbody tr:last-child td{border-bottom:0}
-tbody tr{transition:background-color .2s ease}
-tbody tr:hover{background:var(--press)}
-th{color:var(--muted);font-size:.75rem;font-weight:600;white-space:nowrap}
-td:first-child{min-width:15rem}
-td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-a{color:var(--accent);text-decoration:none;transition:opacity .1s ease-out}
-a:hover{text-decoration:underline}
-a:active{opacity:.6}
-a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:.25rem}
-code{font:.8125rem ui-monospace,"SF Mono",Menlo,monospace;color:var(--muted)}
-p code{color:inherit}
-svg{max-width:26rem;width:100%;height:auto;display:block;margin:0 auto}
-svg text{fill:var(--muted);font:11px -apple-system,system-ui,sans-serif}
-footer{margin-top:4rem;color:var(--muted);font-size:.8125rem;border-top:1px solid var(--line);
-padding-top:1rem}
-.flow{list-style:none;margin:1rem 0 0;padding:0;display:grid;gap:1.75rem;counter-reset:step}
-.flow li{position:relative;background:var(--card);border-radius:1.125rem;padding:1.125rem 1.25rem;
-counter-increment:step}
-.flow li::before{content:counter(step);display:grid;place-items:center;width:1.75rem;height:1.75rem;
-border-radius:50%;background:var(--accent);color:var(--card);font-size:.875rem;font-weight:600;
-margin-bottom:.625rem}
-.flow b{display:block;font-size:1.0625rem;letter-spacing:-.01em}
-.flow span{display:block;color:var(--muted);font-size:.875rem;line-height:1.4;margin-top:.25rem}
-.flow li:not(:last-child)::after{content:"\2193";position:absolute;left:50%;bottom:-1.5rem;
-transform:translateX(-50%);color:var(--muted);line-height:1}
-@media (min-width:56rem){.flow{grid-template-columns:repeat(5,1fr);gap:1.5rem}
-.flow li{padding:1rem}
-.flow li:not(:last-child)::after{content:"\2192";left:auto;right:-1.25rem;bottom:auto;top:50%;
-transform:translateY(-50%)}}
-@media (prefers-reduced-motion:reduce){main{animation:none}tbody tr,a{transition:none}}
+.stat span{color:var(--muted);font-size:.875rem}
+.calib{display:grid;gap:2rem;margin-top:4.5rem;align-items:center}
+@media (min-width:52rem){.calib{grid-template-columns:22rem 1fr;gap:3.5rem}}
+.calib p{margin-top:.75rem;max-width:32rem}
+.plot svg{width:100%;height:auto;display:block;max-width:24rem}
+.plot svg text{fill:var(--muted);font:11px system-ui,sans-serif}
+.blank{border:1px dashed var(--line);border-radius:var(--r);padding:1.5rem;color:var(--muted)}
+
+/* the two-marker scale: filled = Oracle, ring = market */
+.duo{position:relative;display:block;height:1.25rem}
+.duo::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+.duo .gap{position:absolute;left:var(--lo);width:var(--w);top:calc(50% - 2px);height:4px;
+border-radius:2px;background:var(--soft);transform-origin:left}
+.duo .mk{position:absolute;top:50%;width:.8rem;height:.8rem;margin:-.4rem 0 0 -.4rem;
+border-radius:50%}
+.duo .o{left:var(--o);background:var(--accent)}
+.duo .m{left:var(--m);background:var(--surface);border:2px solid var(--muted)}
+.duo.big{height:2rem}
+.duo.big .mk{width:1.1rem;height:1.1rem;margin:-.55rem 0 0 -.55rem}
+.enter .feature .mk,.is-active .duo .mk{animation:drop .6s var(--ease) both .15s}
+.enter .feature .gap,.is-active .duo .gap{animation:grow .7s var(--ease) both .45s}
+@keyframes drop{from{opacity:0;transform:translateY(-.9rem)}}
+@keyframes grow{from{transform:scaleX(0)}}
+@keyframes pop{from{opacity:0;transform:scale(.4)}}
+.key{display:flex;gap:1.25rem;font-size:.8125rem;color:var(--muted);align-items:center}
+.key i{display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:.4rem;
+vertical-align:-1px}
+.key .o{background:var(--accent)}
+.key .m{border:2px solid var(--muted)}
+
+/* how it works */
+.pipe{display:grid;gap:1.5rem;margin-top:2.5rem}
+@media (min-width:56rem){.pipe{grid-template-columns:17rem 1fr;gap:2.5rem;align-items:start}}
+.pipe-nav{display:none;gap:.5rem;overflow-x:auto;scrollbar-width:none}
+.js .pipe-nav{display:flex}
+@media (min-width:56rem){.js .pipe-nav{flex-direction:column;gap:0;overflow:visible}}
+.stage-btn{flex:none;position:relative;font:inherit;text-align:left;cursor:pointer;background:none;border:0;
+color:var(--muted);padding:.6rem .9rem;border-radius:10px;white-space:nowrap;overflow:hidden;
+transition:color .2s var(--ease),background-color .2s var(--ease)}
+.stage-btn b{display:block;font-size:1.0625rem;letter-spacing:-.01em;font-weight:620}
+.stage-btn span{display:none;font-size:.875rem;line-height:1.4;margin-top:.15rem;white-space:normal}
+@media (min-width:56rem){.stage-btn{padding:1rem 1.1rem}.stage-btn span{display:block}}
+.stage-btn:hover{color:var(--fg)}
+.stage-btn[aria-selected=true]{color:var(--fg);background:var(--surface)}
+.stage-btn::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;
+background:var(--accent);transform:scaleX(0);transform-origin:left}
+.stage-btn[aria-selected=true]::after{transform:scaleX(1)}
+.stage-btn.auto::after{animation:fill 7s linear both}
+.pipe:hover .stage-btn.auto::after,.pipe:focus-within .stage-btn.auto::after{animation-play-state:paused}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+padding:1.5rem;min-height:23rem}
+.stage+.stage{margin-top:1rem}
+.js .stage+.stage{margin-top:0}
+@media (min-width:44rem){.stage{padding:2rem}}
+.stage h3{font-size:1.375rem;letter-spacing:-.02em;font-weight:640}
+.stage>p{color:var(--muted);margin-top:.5rem;max-width:36rem}
+.viz{margin-top:1.75rem}
+.cap{font-size:.875rem;color:var(--muted);margin-top:1rem}
+.cap strong{color:var(--fg);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(15,1fr);gap:.4rem;max-width:36rem}
+.grid i{aspect-ratio:1;border-radius:5px;background:var(--line)}
+.grid i.on{background:var(--accent)}
+.grid i.me{outline:2px solid var(--accent);outline-offset:2px}
+.is-active .grid i.on{animation:pop .5s var(--ease) both;animation-delay:calc(var(--i)*90ms + .2s)}
+.srow{display:grid;grid-template-columns:8.5rem 1fr 3rem;gap:.75rem;align-items:center;
+padding:.55rem 0;font-size:1rem}
+.srow .ax{position:relative;height:1rem}
+.srow .ax::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+.srow .ax i{position:absolute;top:50%;left:var(--p);width:.7rem;height:.7rem;
+margin:-.35rem 0 0 -.35rem;border-radius:50%;background:var(--accent)}
+.srow b{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.is-active .srow .ax i{animation:drop .55s var(--ease) both;animation-delay:calc(var(--i)*140ms + .2s)}
+.is-active .srow b{animation:rise .5s var(--ease) both;animation-delay:calc(var(--i)*140ms + .35s)}
+.ends{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:.25rem}
+.blend{position:relative;height:7.5rem;margin:0 .6rem}
+.blend::before{content:"";position:absolute;left:0;right:0;top:3.75rem;height:1px;background:var(--line)}
+.blend .pt{position:absolute;top:3.75rem;left:var(--p);width:.5rem;height:.5rem;
+margin:-.25rem 0 0 -.25rem;border-radius:50%;background:var(--muted);opacity:.45}
+.blend .tag{position:absolute;left:var(--p);transform:translateX(-50%);font-size:.8125rem;
+white-space:nowrap;text-align:center;color:var(--muted)}
+.blend .tag b{display:block;font-size:1.0625rem;color:var(--fg);font-variant-numeric:tabular-nums}
+.blend .tag::after{content:"";position:absolute;left:50%;width:1px;background:var(--line)}
+.blend .t1{top:0}.blend .t1::after{top:100%;height:1.1rem}
+.blend .t2{top:4.6rem}.blend .t2::after{bottom:100%;height:.5rem}
+.blend .dot{position:absolute;top:3.75rem;left:var(--p);width:1rem;height:1rem;
+margin:-.5rem 0 0 -.5rem;border-radius:50%}
+.blend .model{background:var(--surface);border:2px solid var(--accent)}
+.blend .market{background:var(--surface);border:2px solid var(--muted)}
+.blend .final{background:var(--accent);width:1.3rem;height:1.3rem;margin:-.65rem 0 0 -.65rem}
+.is-active .blend .pt{animation:pop .4s var(--ease) both;animation-delay:calc(var(--i)*70ms + .1s)}
+.is-active .blend .model,.is-active .blend .t1{animation:drop .5s var(--ease) both .6s}
+.is-active .blend .market{animation:drop .5s var(--ease) both .9s}
+.is-active .blend .final{animation:pop .6s var(--ease) both 1.3s}
+.finalnote{font-size:1.0625rem;margin-top:.5rem}
+.finalnote b{color:var(--accent);font-variant-numeric:tabular-nums}
+.chain{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem 0}
+.block{border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;font-size:.875rem;
+color:var(--muted);background:var(--bg)}
+.block code{display:block;font-size:1.125rem;color:var(--fg);margin-top:.25rem}
+.block.now{border-color:var(--accent);background:var(--soft)}
+.block.next{border-style:dashed;background:none}
+.join{width:3rem;height:2px;background:var(--muted);transform-origin:left;opacity:.6}
+.is-active .block{animation:rise .5s var(--ease) both}
+.is-active .block.now{animation-delay:.5s}.is-active .block.next{animation-delay:1s}
+.is-active .join{animation:grow .4s var(--ease) both .35s}
+.is-active .join+.block+.join{animation-delay:.85s}
+.errs{display:grid;gap:.6rem;max-width:28rem}
+.err{display:grid;grid-template-columns:5rem 1fr 3.5rem;gap:.75rem;align-items:center;font-size:.9375rem}
+.err i{height:.6rem;border-radius:3px;background:var(--muted);width:var(--w);min-width:2px;
+transform-origin:left}
+.err.o i{background:var(--accent)}
+.err b{text-align:right;font-variant-numeric:tabular-nums}
+.is-active .err i{animation:grow .7s var(--ease) both .3s}
+
+/* forecasts */
+.bar{display:none;flex-wrap:wrap;gap:.5rem 1.5rem;align-items:center;margin-top:2rem}
+.js .bar{display:flex}
+.group{display:flex;gap:.35rem;align-items:center}
+.group>span{font-size:.8125rem;color:var(--muted);margin-right:.25rem}
+.chip{background:none;border-color:var(--line);color:var(--fg);padding:.35rem .8rem;font-size:.875rem}
+.chip:hover{border-color:var(--fg)}
+.chip[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.bar .key{margin-left:auto}
+.list{margin-top:1.25rem;border-top:1px solid var(--line)}
+.fc{border-bottom:1px solid var(--line)}
+.fc summary{display:grid;grid-template-columns:1fr auto;gap:.5rem 1.25rem;align-items:center;
+padding:1rem .25rem;cursor:pointer;list-style:none;transition:background-color .2s var(--ease)}
+.fc summary::-webkit-details-marker{display:none}
+.fc summary:hover{background:var(--soft)}
+.fc-title{font-weight:560;line-height:1.35}
+.fc-viz{grid-column:1/-1}
+.fc-num{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.fc-num b{color:var(--accent);font-size:1.0625rem}
+.fc-num span,.fc-when{color:var(--muted);font-size:.875rem}
+.fc-when{grid-column:1/-1;white-space:nowrap}
+@media (min-width:56rem){.fc summary{grid-template-columns:minmax(0,1fr) 15rem 7.5rem 8.5rem;
+padding:1.1rem .5rem}.fc-viz,.fc-when{grid-column:auto}.fc-when{text-align:right}}
+.fc-body{padding:.25rem .25rem 1.5rem;max-width:52rem}
+@media (min-width:56rem){.fc-body{padding:.25rem .5rem 1.75rem}}
+.fc[open] .fc-body{animation:rise .4s var(--ease) both}
+.fc-body>p{color:var(--muted);font-size:.9375rem}
+.samples{display:grid;gap:1rem;margin:1.25rem 0}
+@media (min-width:44rem){.samples{grid-template-columns:1fr 1fr;gap:1.25rem 2rem}}
+.sample h4{margin:0;font-size:.875rem;font-weight:620;display:flex;justify-content:space-between}
+.sample h4 b{color:var(--accent);font-variant-numeric:tabular-nums}
+.sample p{font-size:.9375rem;color:var(--muted);margin-top:.25rem}
+.meta{display:flex;flex-wrap:wrap;gap:.35rem 1.5rem;font-size:.875rem;color:var(--muted)}
+.meta code{color:var(--fg)}
+
+/* verify */
+.verify{display:grid;gap:2.5rem;margin-top:2rem}
+@media (min-width:56rem){.verify{grid-template-columns:1fr 1fr;gap:4rem}}
+.verify p{margin-top:.75rem;color:var(--muted);max-width:34rem}
+pre{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+padding:1.25rem;overflow-x:auto;font-size:.875rem;line-height:1.7}
+footer{border-top:1px solid var(--line);padding:1.5rem 0 3rem;color:var(--muted);font-size:.8125rem}
+footer p+p{margin-top:.35rem}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;
+transition:none!important}}
 </style>
 </head>
 <body>
-<main>
-<h1>Oracle</h1>
-<p class="muted">An AI forecaster with web search, scored against Kalshi and Polymarket prices.
-Every forecast is logged before the outcome is known. Paper trading only.</p>
-<p class="headline">Not enough resolved questions yet (0 scored, 10 needed).</p>
+<header class="nav"><div class="wrap">
+<span class="brand">Oracle</span>
+<nav class="tabs" role="tablist" aria-label="Sections"><button class="tab" role="tab" type="button" data-tab="overview" aria-selected="false">Overview</button><button class="tab" role="tab" type="button" data-tab="how" aria-selected="false">How it works</button><button class="tab" role="tab" type="button" data-tab="forecasts" aria-selected="false">Forecasts</button><button class="tab" role="tab" type="button" data-tab="verify" aria-selected="false">Verify</button></nav>
+</div></header>
+<main class="wrap">
 
-<div class="tiles"><div class="tile"><b>0</b><span>resolved</span></div><div class="tile"><b>5</b><span>open</span></div><div class="tile"><b>$+0.00</b><span>paper P&L, 0 bets</span></div><div class="tile"><b>$0.73</b><span>API cost</span></div></div>
+<section class="panel" data-panel="overview">
+<div class="hero">
+<div>
+<h1>Can an AI beat the prediction markets?</h1>
+<p class="lede">Oracle forecasts real questions daily, logs each one before the outcome is known,
+and scores itself against market prices. Paper trading only.</p>
+<div class="cta">
+<a class="btn" href="#forecasts" data-goto="forecasts">See the forecasts</a>
+<a class="btn ghost" href="#how" data-goto="how">How it works</a>
+</div>
+</div>
+<div class="feature"><span class="eyebrow">Largest open disagreement</span><h3>Will Ho Hsin-chun win the next Taichung Mayor election?</h3><span class="duo big" role="img" aria-label="Oracle 53 percent, market 23 percent" style="--o:53.5%;--m:22.6%;--lo:22.6%;--w:30.9%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span><div class="pair"><span class="o"><b>53%</b>Oracle</span><span class="m"><b>23%</b>Market</span></div></div>
+</div>
+<p class="verdict">Not enough resolved questions yet (0 scored, 10 needed).</p>
 
-<h2>How it works</h2>
-<p class="muted">The same five steps run automatically every day.</p>
-<ol class="flow"><li><b>Pick</b><span>Questions are drawn at random from Kalshi and Polymarket, fixed by the date.</span></li><li><b>Research</b><span>An AI searches the web and estimates the chance several times, without seeing the market price.</span></li><li><b>Combine</b><span>The estimates are averaged, then blended with the market price.</span></li><li><b>Record</b><span>The forecast is logged publicly before the outcome is known.</span></li><li><b>Score</b><span>Once settled, Oracle and the market are scored against what happened.</span></li></ol>
-
-<h2>Calibration</h2>
+<div class="stats"><div class="stat"><b data-count="0">0</b><span>resolved</span></div><div class="stat"><b data-count="5">5</b><span>open</span></div><div class="stat"><b>$+0.00</b><span>paper P&amp;L, 0 bets</span></div><div class="stat"><b data-count="0.73" data-dec="2" data-pre="$">$0.73</b><span>API cost</span></div></div>
+<div class="calib">
+<div class="blank">Appears once questions have resolved.</div>
+<div>
+<h2>Is it honest about its odds?</h2>
 <p class="muted">Of the questions Oracle gave about X%, how many happened? Dots on the dashed
 line are perfectly calibrated; bigger dots hold more questions.</p>
-<div class="plot"><p class="muted">Appears once questions have resolved.</p></div>
+</div>
+</div>
+</section>
 
-<h2>Open forecasts</h2>
-<div class="scroll"><table><thead><tr><th>Question</th><th>Oracle</th><th>Market</th><th>Closes</th><th>Ledger hash</th></tr></thead><tbody><tr><td><a href="https://polymarket.com/market/highest-temperature-in-warsaw-on-november-17-2026-7c" rel="noopener">Will the highest temperature in Warsaw be 7°C on November 17?</a></td><td class="n">22%</td><td class="n">42%</td><td class="n">2026-11-17</td><td><code>bc8c380c49</code></td></tr><tr><td><a href="https://polymarket.com/market/ucl-atm-vf-2026-11-25-vf" rel="noopener">Will Viking FK win on 2026-11-25?</a></td><td class="n">6%</td><td class="n">4%</td><td class="n">2026-11-25</td><td><code>a6dfc032a9</code></td></tr><tr><td><a href="https://polymarket.com/market/will-ho-hsin-chun-win-the-next-taichung-mayor-election-20260813125857402" rel="noopener">Will Ho Hsin-chun win the next Taichung Mayor election?</a></td><td class="n">53%</td><td class="n">23%</td><td class="n">2026-11-29</td><td><code>3fbb9da1a1</code></td></tr><tr><td><a href="https://polymarket.com/market/will-the-houthis-successfully-target-shipping-by-november-30-2026" rel="noopener">Will the Houthis successfully target shipping by November 30, 2026?</a></td><td class="n">8%</td><td class="n">15%</td><td class="n">2026-12-01</td><td><code>8c6721b604</code></td></tr><tr><td><a href="https://kalshi.com/markets/KXCPICOREYOY-26DEC" rel="noopener">Will the rate of core CPI inflation be above 3.2% for the year ending in December 2026?</a></td><td class="n">6%</td><td class="n">6%</td><td class="n">2027-01-13</td><td><code>039e56079c</code></td></tr></tbody></table></div>
+<section class="panel" data-panel="how">
+<h2>One forecast, start to finish</h2>
+<p class="lede sub">Follow one real forecast from the record through every step.</p>
+<div class="pipe"><div class="pipe-nav" role="tablist" aria-label="Steps"><button class="stage-btn" role="tab" type="button" aria-selected="false"><b>Pick</b><span>Questions are drawn at random.</span></button><button class="stage-btn" role="tab" type="button" aria-selected="false"><b>Research</b><span>An AI estimates the chance, several times.</span></button><button class="stage-btn" role="tab" type="button" aria-selected="false"><b>Combine</b><span>The estimates become one number.</span></button><button class="stage-btn" role="tab" type="button" aria-selected="false"><b>Record</b><span>It is logged before the outcome.</span></button><button class="stage-btn" role="tab" type="button" aria-selected="false"><b>Score</b><span>Oracle and the market are compared.</span></button></div><div><div class="stage" role="tabpanel"><h3>Pick</h3><p>Each day a few open questions are drawn at random from Kalshi and Polymarket. The draw is fixed by the date, so nobody can choose easy ones.</p><div class="viz"><div class="grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on me" style="--i:0"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on" style="--i:1"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on" style="--i:2"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on" style="--i:3"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on" style="--i:4"></i></div><p class="cap">5 questions were drawn on 16 Nov 2026. The outlined one: <strong>Will Ho Hsin-chun win the next Taichung Mayor election?</strong></p></div></div><div class="stage" role="tabpanel"><h3>Research</h3><p>An AI model searches the web and estimates the chance of YES, each time from a different angle. It is never shown the market price.</p><div class="viz"><div class="srow" style="--i:0"><span>Outside view</span><span class="ax"><i style="--p:70.0%"></i></span><b>70%</b></div><div class="srow" style="--i:1"><span>Inside view</span><span class="ax"><i style="--p:83.0%"></i></span><b>83%</b></div><div class="srow" style="--i:2"><span>Devil&#x27;s advocate</span><span class="ax"><i style="--p:83.0%"></i></span><b>83%</b></div><div class="srow" style="--i:3"><span>Rules lawyer</span><span class="ax"><i style="--p:74.0%"></i></span><b>74%</b></div><div class="srow" style="--i:4"><span>Status quo</span><span class="ax"><i style="--p:35.0%"></i></span><b>35%</b></div><div class="srow"><span></span><span class="ends"><span>0%</span><span>100%</span></span><b></b></div><p class="cap">The 5 estimates Oracle made for this question.</p></div></div><div class="stage" role="tabpanel"><h3>Combine</h3><p>The estimates are averaged into one probability, which is then blended with the market price.</p><div class="viz"><div class="blend"><i class="pt" style="--p:70.0%;--i:0"></i><i class="pt" style="--p:83.0%;--i:1"></i><i class="pt" style="--p:83.0%;--i:2"></i><i class="pt" style="--p:74.0%;--i:3"></i><i class="pt" style="--p:35.0%;--i:4"></i><span class="tag t1" style="--p:81.9%"><b>82%</b>Oracle alone</span><i class="dot model" style="--p:81.9%"></i><i class="dot market" style="--p:22.6%"></i><span class="tag t2" style="--p:22.6%"><b>23%</b>Market</span><i class="dot final" style="--p:53.5%"></i></div><p class="finalnote">Final forecast: <b>53%</b></p><p class="cap">Small grey dots are the single estimates. The solid dot is the blend of Oracle and the market.</p></div></div><div class="stage" role="tabpanel"><h3>Record</h3><p>The forecast goes into a public log before the outcome is known. Each entry carries the fingerprint of the one before it, so an old entry cannot be changed unnoticed.</p><div class="viz"><div class="chain"><div class="block">Entry before<code>bc8c380c49</code></div><i class="join"></i><div class="block now">This forecast<code>3fbb9da1a1</code></div><i class="join"></i><div class="block next">Next entry<code>builds on this</code></div></div><p class="cap">Logged on 16 Nov 2026. The codes are the first 10 characters of each entry's fingerprint in the ledger.</p></div></div><div class="stage" role="tabpanel"><h3>Score</h3><p>When the question is settled, Oracle and the market are both scored against what happened. The smaller error wins.</p><div class="viz"><span class="duo big" role="img" aria-label="Oracle 53 percent, market 23 percent" style="--o:53.5%;--m:22.6%;--lo:22.6%;--w:30.9%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span><div class="ends"><span>0% (NO)</span><span>100% (YES)</span></div><p class="cap">This question closes on 29 Nov 2026. It is scored once the result is known: whoever sits closer to the outcome wins.</p></div></div></div></div>
+</section>
 
-<h2>How to verify</h2>
-<p>Each forecast is one line of <a href="https://github.com/mahir-patel/Oracle/blob/main/data/ledger.jsonl"><code>data/ledger.jsonl</code></a>.
-Every line carries the hash of the line before it, so editing or deleting an old forecast
-breaks the chain. Clone the repository and run <code>oracle verify</code> to recompute it.
-The git history of that file shows when each forecast was committed.</p>
+<section class="panel" data-panel="forecasts">
+<h2>Every forecast on record</h2>
+<p class="lede sub">Select a question to read what the AI found and why it landed where it did.</p>
+<div class="bar"><div class="group"><span>Show</span><button class="chip" type="button" data-filter="open">Open</button><button class="chip" type="button" data-filter="resolved">Resolved</button><button class="chip" type="button" data-filter="all">All</button></div><div class="group"><span>Sort</span><button class="chip" type="button" data-sort="close">Closing soonest</button><button class="chip" type="button" data-sort="gap">Biggest gap</button></div><div class="key"><span><i class="o"></i>Oracle</span><span><i class="m"></i>Market</span></div></div><div class="list" data-list data-default="open"><details class="fc" data-state="open" data-close="2026-11-17T12:00:00+00:00" data-gap="0.2068"><summary><span class="fc-title">Will the highest temperature in Warsaw be 7°C on November 17?</span><span class="fc-viz"><span class="duo" role="img" aria-label="Oracle 22 percent, market 42 percent" style="--o:21.8%;--m:42.5%;--lo:21.8%;--w:20.7%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span></span><span class="fc-num"><b>22%</b> <span>vs 42%</span></span><span class="fc-when">Closes 17 Nov 2026</span></summary><div class="fc-body"><p>Oracle alone said 10%. Blended with the market price of 42%, the logged forecast is 22%.</p><div class="samples"><div class="sample"><h4>Outside view<b>11%</b></h4><p>Climatological 1-degree bin for Warsaw mid-November daily max (mean ~6-7C, SD ~4C) gives ~10%. A possibly stale yr.no forecast of 8C max with rain nudges slightly upward. Resolution uses METAR T-group, rounded to whole degrees; SPECI excluded.</p></div><div class="sample"><h4>Inside view<b>18%</b></h4><p>Resolves on the 1°C bin (6.5 to 7.5°C) containing Warsaw&#x27;s peak routine METAR temperature on 17 Nov. Forecast highs cluster around 6 to 9°C, with a central estimate near 7 to 7.5°C. A 2.2°C error SD at about 1.5 days lead gives roughly 18% for this bin. Sources conflict and some are stale.</p></div><div class="sample"><h4>Devil&#x27;s advocate<b>17%</b></h4><p>Single 1°C bin for the Warsaw daily max. Climatological base rate about 9%. Forecasts from the more recent sources put the 17 Nov daytime high around 6–8°C, centred near the 7°C bin, with about 2–2.5°C forecast uncertainty at one-day lead. Search results were mostly stale, so the estimate stays moderate.</p></div><div class="sample"><h4>Rules lawyer<b>10%</b></h4><p>No forecast retrieved (search limit hit). Climatology: Warsaw mid-November daily max mean ~6°C, SD ~4°C, so a 1°C bin (6.5 to &lt;7.5) gets ~10%. Resolution uses max of routine METAR T-groups, local CET day, SPECI excluded, half-degree rounds up.</p></div><div class="sample"><h4>Status quo<b>18%</b></h4><p>Single 1°C bin on a day-ahead Warsaw max in November; base rate about 15-20%. Stale forecasts centre near 6-9°C, straddling 7°C. No current model data found, so estimate stays near the prior.</p></div></div><div class="meta"><span>Paper bet: NO, 83 contracts</span><span>Ledger entry <code>bc8c380c49</code></span><span><a href="https://polymarket.com/market/highest-temperature-in-warsaw-on-november-17-2026-7c" rel="noopener">View on Polymarket</a></span></div></div></details><details class="fc" data-state="open" data-close="2026-11-25T20:00:00+00:00" data-gap="0.0199"><summary><span class="fc-title">Will Viking FK win on 2026-11-25?</span><span class="fc-viz"><span class="duo" role="img" aria-label="Oracle 6 percent, market 4 percent" style="--o:6.0%;--m:4.0%;--lo:4.0%;--w:2.0%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span></span><span class="fc-num"><b>6%</b> <span>vs 4%</span></span><span class="fc-when">Closes 25 Nov 2026</span></summary><div class="fc-body"><p>Oracle alone said 9%. Blended with the market price of 4%, the logged forecast is 6%.</p><div class="samples"><div class="sample"><h4>Outside view<b>15%</b></h4><p>Away side win in regulation at a strong home side in the UCL league phase; Viking is pot-4 with a mixed start, Atlético at home. Draws and Atlético wins take the rest. Fixture confirmed on 25 Nov, 9 days out, no team news yet.</p></div><div class="sample"><h4>Inside view<b>13%</b></h4><p>Atletico Madrid home favourite vs Viking FK in UCL league phase. Away-win base rate for weaker side vs strong home side is about 10-15%. Could not verify current form or team news due to search budget exhaustion, so estimate rests on fixture structure. Small uplift for Viking&#x27;s European upsets.</p></div><div class="sample"><h4>Devil&#x27;s advocate<b>9%</b></h4><p>Reference class of CL home favourites vs unseeded visitors gives roughly 8-12% away wins. Pre-match prices imply about 9-10% for Viking after margin removal. Viking are in good form, but Atletico are strong at home. Nine days to kick-off, so team news is unlikely to move it much.</p></div><div class="sample"><h4>Rules lawyer<b>17%</b></h4><p>Fixture confirmed (25 Nov 2026, 20:00 UTC kickoff, Metropolitano). Away-win base rate in CL league phase is about 18%. Viking are strong domestically and level on points with Atlético, but Atlético&#x27;s home advantage dominates. Resolution is a straightforward 90-minute win, and no abandonment edge cases look likely.</p></div><div class="sample"><h4>Status quo<b>15%</b></h4><p>Confirmed away fixture at Atlético&#x27;s Metropolitano. Viking are far weaker by club strength, though strong domestically and Atlético are only mid-table in the league phase. Status quo with no news; abandonment risk negligible. Draw and Atlético wins make up the rest.</p></div></div><div class="meta"><span>Paper bet: none</span><span>Ledger entry <code>a6dfc032a9</code></span><span><a href="https://polymarket.com/market/ucl-atm-vf-2026-11-25-vf" rel="noopener">View on Polymarket</a></span></div></div></details><details class="fc" data-state="open" data-close="2026-11-29T04:59:00+00:00" data-gap="0.3085"><summary><span class="fc-title">Will Ho Hsin-chun win the next Taichung Mayor election?</span><span class="fc-viz"><span class="duo" role="img" aria-label="Oracle 53 percent, market 23 percent" style="--o:53.5%;--m:22.6%;--lo:22.6%;--w:30.9%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span></span><span class="fc-num"><b>53%</b> <span>vs 23%</span></span><span class="fc-when">Closes 29 Nov 2026</span></summary><div class="fc-body"><p>Oracle alone said 82%. Blended with the market price of 23%, the logged forecast is 53%.</p><div class="samples"><div class="sample"><h4>Outside view<b>70%</b></h4><p>Base rate: KMT-held Taichung, incumbent-party nominee in a multi-candidate race usually wins (~65-75%). Search tool failed, so no current polls checked. Ho&#x27;s low name recognition is offset by the KMT&#x27;s Taichung base. About 12 days left, little time for a shift. Deadline and resolution technicalities are not a risk.</p></div><div class="sample"><h4>Inside view<b>83%</b></h4><p>Taichung is a KMT stronghold (won 2018 and 2022 comfortably) with outgoing mayor Lu Shiow-yen backing successor Ho Hsin-chun. Discounts for a lesser-known candidate and a DPP-government midterm swing. Could not verify current polls; search results were unusable.</p></div><div class="sample"><h4>Devil&#x27;s advocate<b>83%</b></h4><p>Ho is, to my knowledge, the KMT nominee in KMT-held Taichung, which has been KMT-held since 2010. Incumbent-party nominees in home-turf seats win about 75-80% of the time. I could not verify current polls because the search tool hit its limit, so the estimate leans on background knowledge and a 12-day horizon.</p></div><div class="sample"><h4>Rules lawyer<b>74%</b></h4><p>Search tool failed, so no current polls or nomination check. Taichung elected KMT mayors in 2014, 2018 and 2022. Assuming Ho is the KMT nominee, base rate for a KMT candidate there is high. Discounted for unverified nomination, possible DPP strength, and national-mood uncertainty. Resolution is clean and the deadline is generous.</p></div><div class="sample"><h4>Status quo<b>35%</b></h4><p>Taichung is a KMT stronghold with an open seat. KMT-commissioned polls show Chiang ahead by about 10 points, while the DPP-aligned Xinmin poll shows Ho ahead by 10.7 points. Averaged, Chiang leads by about 3-6 points, with about a quarter undecided and 12 days left. Chiang is modest favourite.</p></div></div><div class="meta"><span>Paper bet: YES, 201 contracts</span><span>Ledger entry <code>3fbb9da1a1</code></span><span><a href="https://polymarket.com/market/will-ho-hsin-chun-win-the-next-taichung-mayor-election-20260813125857402" rel="noopener">View on Polymarket</a></span></div></div></details><details class="fc" data-state="open" data-close="2026-12-01T04:59:00+00:00" data-gap="0.0732"><summary><span class="fc-title">Will the Houthis successfully target shipping by November 30, 2026?</span><span class="fc-viz"><span class="duo" role="img" aria-label="Oracle 8 percent, market 15 percent" style="--o:7.7%;--m:15.0%;--lo:7.7%;--w:7.3%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span></span><span class="fc-num"><b>8%</b> <span>vs 15%</span></span><span class="fc-when">Closes 1 Dec 2026</span></summary><div class="fc-body"><p>Oracle alone said 4%. Blended with the market price of 15%, the logged forecast is 8%.</p><div class="samples"><div class="sample"><h4>Outside view<b>8%</b></h4><p>Houthi ship strikes/seizures resolve only on confirmed direct hits or boardings in a 14-day window. Campaign was paused after the Oct 2025 Gaza ceasefire; base rate for a quiet-phase fortnight is low. Search tool failed, so no 2026 reporting was checked; small upward adjustment for unknown escalation.</p></div><div class="sample"><h4>Inside view<b>8%</b></h4><p>No search results obtained (tool limit hit), so relying on prior knowledge: Houthi shipping attacks paused since late-2025 Gaza ceasefire. Two-week window, status quo favoured; small uplift for question&#x27;s existence suggesting tension. Uncertain about Nov 2026 situation.</p></div><div class="sample"><h4>Devil&#x27;s advocate<b>8%</b></h4><p>Houthis largely paused commercial shipping attacks after the Oct 2025 Gaza ceasefire per my knowledge. Two-week window; status quo favoured. Could not verify 2026 developments because search budget was exhausted, so modest uplift for possible unseen escalation and resumption threats.</p></div><div class="sample"><h4>Rules lawyer<b>7%</b></h4><p>Houthi shipping attacks largely paused after the Oct 2025 Gaza ceasefire. The window is about two weeks. Resolution needs direct hits or seizures attributed to the Houthis by the deadline, which lowers YES odds. Could not verify 2026 status because search failed, so some allowance for unseen escalation.</p></div><div class="sample"><h4>Status quo<b>7%</b></h4><p>Searches failed (tool limit reached), so this relies on pre-2026 knowledge: Houthi shipping attacks were paused in a quiet regime since late 2025. Status quo of no attacks over ~15 days is likely; residual weight for sudden regional escalation and unverified 2026 developments.</p></div></div><div class="meta"><span>Paper bet: NO, 58 contracts</span><span>Ledger entry <code>8c6721b604</code></span><span><a href="https://polymarket.com/market/will-the-houthis-successfully-target-shipping-by-november-30-2026" rel="noopener">View on Polymarket</a></span></div></div></details><details class="fc" data-state="open" data-close="2027-01-13T13:25:00+00:00" data-gap="0.0099"><summary><span class="fc-title">Will the rate of core CPI inflation be above 3.2% for the year ending in December 2026?</span><span class="fc-viz"><span class="duo" role="img" aria-label="Oracle 6 percent, market 6 percent" style="--o:6.5%;--m:5.5%;--lo:5.5%;--w:1.0%"><i class="gap"></i><i class="mk m"></i><i class="mk o"></i></span></span><span class="fc-num"><b>6%</b> <span>vs 6%</span></span><span class="fc-when">Closes 13 Jan 2027</span></summary><div class="fc-body"><p>Oracle alone said 8%. Blended with the market price of 6%, the logged forecast is 6%.</p><div class="samples"><div class="sample"><h4>Outside view<b>14%</b></h4><p>Dec-to-Dec core CPI exceeded 3.2% only in 2022-2023 over ~16 years. Core was near 2.5-3.0% in late 2025/early 2026 per memory, with tariff pass-through fading. Shutdown data distortions mainly hit Oct-Nov 2026 readings. Live 2026 data unverified (search budget exhausted).</p></div><div class="sample"><h4>Inside view<b>8%</b></h4><p>Core CPI y/y was 2.6% in September 2026. Oct-Dec 2026 would need roughly 0.37-0.4% monthly core, versus recent 0.3% prints, to reach 3.3% in the December print. Central path is about 3.0-3.1%; forecasters cluster near 2.7%. Reaching 3.3% needs a large upside surprise.</p></div><div class="sample"><h4>Devil&#x27;s advocate<b>10%</b></h4><p>Core CPI y/y likely near 2.5-2.9% in late 2026 per late-2025 forecasts; 3.3%+ needs a ~0.5pp upside surprise (tariff pass-through, sticky shelter, fiscal boost). Searches failed, so no 2026 prints verified; forecast rests on prior knowledge.</p></div><div class="sample"><h4>Rules lawyer<b>15%</b></h4><p>Resolves YES only if Dec 2026 core CPI YoY prints 3.3%+ (3.2 is NO; release is after 13:25 UTC close). Late-2025 core CPI ~3.0% with tariff pass-through fading and forecasts of 2.5-2.8% for 2026 favor NO. Could not verify 2026 prints; base rate ~0.2.</p></div><div class="sample"><h4>Status quo<b>15%</b></h4><p>Base rate is about 3 of 11 years with December core CPI at 3.3%+, but the last known trend was near 3.0% and easing. Reaching 3.3% needs a re-acceleration of about 0.5pp. Searches failed, so 2026 data is unverified.</p></div></div><div class="meta"><span>Paper bet: none</span><span>Ledger entry <code>039e56079c</code></span><span><a href="https://kalshi.com/markets/KXCPICOREYOY-26DEC" rel="noopener">View on Kalshi</a></span></div></div></details></div><p class="blank" data-empty hidden>Nothing here yet.</p>
+</section>
 
-<footer>
+<section class="panel" data-panel="verify">
+<h2>Check the record yourself</h2>
+<div class="verify">
+<div>
+<p>Each forecast is one line of
+<a href="https://github.com/mahir-patel/Oracle/blob/main/data/ledger.jsonl"><code>data/ledger.jsonl</code></a>.
+Every line carries the fingerprint of the line before it, so editing or deleting an old forecast
+breaks the chain.</p>
+<p>The <a href="https://github.com/mahir-patel/Oracle/commits/main/data/ledger.jsonl">git history of that file</a> shows
+when each forecast was committed, by GitHub's clock and not Oracle's.</p>
+</div>
+<div>
+<pre><code>git clone https://github.com/mahir-patel/Oracle.git
+cd Oracle
+pip install .
+oracle verify</code></pre>
+<p>The last command recomputes the whole chain and reports whether it is intact.</p>
+</div>
+</div>
+</section>
+
+</main>
+<footer><div class="wrap">
 <p>Model: claude-haiku-5-5. Questions resolved before 2026-07-01 are never scored.
-Updated 2026-11-16 05:00 UTC.</p>
+Updated 2026-11-16 05:11 UTC.</p>
 <p>Not financial advice. No real money is traded; paper results ignore slippage and
 market impact.</p>
-</footer>
-</main>
+</div></footer>
+<script>
+(function(){
+var d=document,h=d.documentElement;h.classList.add('js');
+var still=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function all(s,c){return [].slice.call((c||d).querySelectorAll(s))}
+var tabs=all('[role=tab][data-tab]'),panels=all('[data-panel]'),counted=false;
+
+function countUp(){
+  if(still)return;
+  all('[data-count]').forEach(function(el){
+    var to=parseFloat(el.dataset.count),dec=+(el.dataset.dec||0),pre=el.dataset.pre||'',t0=null;
+    function step(t){
+      if(!t0)t0=t;
+      var p=Math.min((t-t0)/900,1),e=1-Math.pow(1-p,3);
+      el.textContent=pre+(to*e).toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+      if(p<1)requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+var btns=all('.stage-btn'),stages=all('.stage'),auto=!still;
+function stage(i,run){
+  btns.forEach(function(b,j){
+    var on=j===i;
+    b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;
+    b.classList.remove('auto');
+    if(on&&auto&&run){void b.offsetWidth;b.classList.add('auto');}
+  });
+  stages.forEach(function(s,j){
+    var on=j===i;s.hidden=!on;s.classList.remove('is-active');
+    if(on){void s.offsetWidth;s.classList.add('is-active');}
+  });
+}
+btns.forEach(function(b,i){
+  b.addEventListener('click',function(){auto=false;stage(i,false);});
+  b.addEventListener('animationend',function(e){
+    if(e.animationName==='fill'&&auto)stage((i+1)%btns.length,true);
+  });
+  b.addEventListener('keydown',function(e){
+    var k=(e.key==='ArrowDown'||e.key==='ArrowRight')?1:(e.key==='ArrowUp'||e.key==='ArrowLeft')?-1:0;
+    if(!k)return;
+    e.preventDefault();auto=false;
+    var n=(i+k+btns.length)%btns.length;stage(n,false);btns[n].focus();
+  });
+});
+
+function show(id,user){
+  if(!panels.some(function(p){return p.dataset.panel===id;}))id='overview';
+  tabs.forEach(function(t){
+    var on=t.dataset.tab===id;
+    t.setAttribute('aria-selected',on?'true':'false');t.tabIndex=on?0:-1;
+  });
+  panels.forEach(function(p){
+    var on=p.dataset.panel===id;p.hidden=!on;p.classList.remove('enter');
+    if(on){void p.offsetWidth;p.classList.add('enter');}
+  });
+  if(user)history.replaceState(null,'','#'+id);
+  window.scrollTo(0,0);
+  if(id==='overview'&&!counted){counted=true;countUp();}
+  if(btns.length){
+    if(id==='how')stage(0,true);
+    else btns.forEach(function(b){b.classList.remove('auto');});
+  }
+}
+tabs.forEach(function(t,i){
+  t.addEventListener('click',function(){show(t.dataset.tab,true);});
+  t.addEventListener('keydown',function(e){
+    var k=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;
+    if(!k)return;
+    var n=tabs[(i+k+tabs.length)%tabs.length];n.focus();show(n.dataset.tab,true);
+  });
+});
+all('[data-goto]').forEach(function(a){
+  a.addEventListener('click',function(e){e.preventDefault();show(a.dataset.goto,true);});
+});
+window.addEventListener('hashchange',function(){show(location.hash.slice(1),false);});
+
+var list=d.querySelector('[data-list]');
+if(list){
+  var rows=all('.fc',list),empty=d.querySelector('[data-empty]'),state=list.dataset.default,sort='close';
+  function apply(){
+    var n=0;
+    rows.slice().sort(function(a,b){
+      if(sort==='gap')return b.dataset.gap-a.dataset.gap;
+      return a.dataset.close<b.dataset.close?-1:a.dataset.close>b.dataset.close?1:0;
+    }).forEach(function(r){list.appendChild(r);});
+    rows.forEach(function(r){var on=state==='all'||r.dataset.state===state;r.hidden=!on;if(on)n++;});
+    if(empty)empty.hidden=n>0;
+    all('[data-filter]').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.filter===state?'true':'false');});
+    all('[data-sort]').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.sort===sort?'true':'false');});
+  }
+  all('[data-filter]').forEach(function(b){b.addEventListener('click',function(){state=b.dataset.filter;apply();});});
+  all('[data-sort]').forEach(function(b){b.addEventListener('click',function(){sort=b.dataset.sort;apply();});});
+  apply();
+}
+show(location.hash.slice(1)||'overview',false);
+})();
+</script>
 </body>
 </html>

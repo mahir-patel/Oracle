@@ -255,14 +255,13 @@ Procedure:
 ### 6.11 `report.py`
 - `build(rows, config, now)`: counts (total/resolved/open), total cost. Then **post-cutoff resolved rows only**: Brier for final/model-only/market, log loss, bootstrap BSS, calibration table, paper P&L and number of bets. Add the contamination check over all resolved rows.
 - `to_markdown(report)`: a short console summary with a ⚠️ line if contamination is suspicious.
-- `write_site(report, rows)` → `docs/index.html`. One self-contained, mobile-friendly page with no external assets. It includes:
-  - the headline BSS with CI and n (or "not enough resolved questions yet");
-  - resolved and open counts, paper P&L and total API cost;
-  - a "how it works" diagram for a general reader: five numbered steps (pick, research, combine, record, score), plain HTML and CSS (added 2026-11-16 at the user's request);
-  - a calibration plot as inline SVG (dot size by n, plus a diagonal reference line);
-  - a table of open forecasts (title linked to the market, Oracle %, market %, close date, first 10 characters of the ledger hash);
-  - a "how to verify" note pointing to `data/ledger.jsonl` and `oracle verify`;
-  - a "not financial advice" footer.
+- `write_site(report, rows)` → `docs/index.html`. One self-contained, mobile-friendly file: inline CSS and one inline script, no external requests of any kind. Redesigned 2026-11-16 at the user's request into four sections behind tabs (with scripts off, all four show stacked):
+  - **Overview:** the question the project asks, the open forecast that disagrees most with the market, the headline BSS with CI and n (or "not enough resolved questions yet"), resolved and open counts, paper P&L and total API cost, and a calibration plot as inline SVG (dot size by n, plus a diagonal reference line).
+  - **How it works:** five steps (pick, research, combine, record, score), each drawn from one real ledger entry: its samples, its model-only, market and final probabilities, its hash and the hash before it, and its error against the market once resolved. It plays through by itself and can be stepped by hand.
+  - **Forecasts:** every forecast, filterable (open / resolved / all) and sortable (closing soonest / biggest gap). Each row shows Oracle % and market % on one scale and the close date or outcome; opened, it shows each sample's persona, probability and rationale, the paper bet, the first 10 characters of the ledger hash and a link to the market.
+  - **Verify:** how to check the record, pointing to `data/ledger.jsonl`, its git history and `oracle verify`.
+  - A "not financial advice" footer on every section.
+  - Text from the venues and the model is always escaped; only http(s) links are made clickable. Motion is switched off under `prefers-reduced-motion`.
 
 ### 6.12 `cli.py` (`python -m forecaster.cli …`, plus an `oracle` console script)
 - `forecast --venue {kalshi,polymarket,both} --scan 400 --max 5`: check the budget, fetch (once per close-time band), select, skip markets already in the ledger, `pick_daily` (6.9), forecast, log each forecast as it is made. Print one line per question plus the run's spend against its cap. The run's cap is the smaller of `MAX_SPEND_PER_RUN` and what is left of `MAX_SPEND_TOTAL` after `SPENT_BEFORE_LEDGER` plus the ledger's `cost_usd` total; with nothing left it forecasts nothing and exits 0. A failed fetch skips that venue and band. An API error that is not retried (bad key, empty account) stops the run with exit code 1; what was logged stays.

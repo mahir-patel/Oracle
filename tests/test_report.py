@@ -100,30 +100,84 @@ def test_headline_makes_no_claim_below_200_questions() -> None:
     assert "Not shown to beat the market" in report.headline(report.build(worse, CFG, NOW))
 
 
-def test_site_lists_open_forecasts_and_is_self_contained() -> None:
+def sample_rows() -> list[dict[str, Any]]:
     rows = [row(1, outcome=None, final=0.31, market=0.44), row(2, outcome=1)]
     rows += [row(10 + i, outcome=i % 2) for i in range(10)]
+    for r in rows:
+        r["prev_hash"] = "ff" * 32
+        r["question"]["venue"] = "polymarket"
+        r["samples"] = [
+            {"persona": "outside_view", "probability": 0.2, "rationale": "Base rate is low."},
+            {"persona": "status_quo", "probability": 0.4, "rationale": "Nothing has changed."},
+        ]
+    return rows
+
+
+def test_site_has_four_sections_behind_tabs() -> None:
+    rows = sample_rows()
     page = report.render_site(report.build(rows, CFG, NOW), rows)
-    assert '<a href="https://example.com/m" rel="noopener">Question 1?</a>' in page
-    assert "31%" in page and "44%" in page and "<code>01abcdef01</code>" in page
-    assert "Question 2?" not in page  # resolved, so not in the open table
-    assert "<svg" in page and "<circle" in page
-    assert "oracle verify" in page and "data/ledger.jsonl" in page
-    # The plain-words pipeline: five steps in order.
-    assert page.count("<li><b>") == 5
-    order = [page.index(f"<b>{s}</b>") for s in ("Pick", "Research", "Combine", "Record", "Score")]
-    assert order == sorted(order)
-    assert "Not financial advice" in page
+    for key in ("overview", "how", "forecasts", "verify"):
+        assert f'data-tab="{key}"' in page and f'data-panel="{key}"' in page
     assert 'name="viewport"' in page
-    # No scripts and nothing loaded from elsewhere.
-    assert "<script" not in page and "<link" not in page and "<img" not in page
-    assert 'src="' not in page and "@import" not in page
+    assert "oracle verify" in page and "data/ledger.jsonl" in page
+    assert "Not financial advice" in page
+    assert "<svg" in page and "<circle" in page  # the calibration plot
 
 
-def test_site_escapes_text_from_the_venues() -> None:
+def test_site_is_one_file_with_no_external_requests() -> None:
+    rows = sample_rows()
+    page = report.render_site(report.build(rows, CFG, NOW), rows)
+    assert page.count("<script>") == 1  # one inline script
+    assert "<script src" not in page and 'src="' not in page
+    assert "<link" not in page and "<img" not in page and "<iframe" not in page
+    assert "@import" not in page and "url(" not in page
+    assert "fetch(" not in page and "XMLHttpRequest" not in page
+    # The design rules ban long dashes anywhere on the page.
+    assert "\u2014" not in page and "\u2013" not in page
+
+
+def test_every_forecast_is_listed_with_its_numbers_and_reasons() -> None:
+    rows = sample_rows()
+    page = report.render_site(report.build(rows, CFG, NOW), rows)
+    assert page.count('<details class="fc"') == 12
+    assert page.count('data-state="open"') == 1 and page.count('data-state="resolved"') == 11
+    assert 'data-default="open"' in page
+    one = page[page.index("Question 1?</span>") :].split("</details>")[0]
+    assert "<b>31%</b> <span>vs 44%</span>" in one and "Closes" in one
+    assert "Base rate is low." in one and "Outside view" in one and "Status quo" in one
+    assert "<code>01abcdef01</code>" in one
+    assert '<a href="https://example.com/m" rel="noopener">View on Polymarket</a>' in one
+    assert "Resolved YES" in page and "Resolved NO" in page
+
+
+def test_pipeline_walks_a_real_forecast_through_five_steps() -> None:
+    rows = sample_rows()
+    page = report.render_site(report.build(rows, CFG, NOW), rows)
+    assert page.count('class="stage-btn"') == 5 and page.count('class="stage"') == 5
+    order = [page.index(f"<b>{s}</b><span>") for s in ("Pick", "Research", "Combine", "Record", "Score")]
+    assert order == sorted(order)
+    # The open forecast furthest from the market is the one shown: Question 1.
+    hero = page[page.index('class="feature"') :].split("</div></div>")[0]
+    assert "Largest open disagreement" in hero and "Question 1?" in hero
+    assert "12 questions were drawn on 20 Aug 2026" in page
+    assert "The 2 estimates Oracle made" in page
+    assert "<code>ffffffffff</code>" in page and "<code>01abcdef01</code>" in page
+    assert "It is scored" in page  # still open, so no error bars yet
+
+    resolved = [r for r in rows if r["outcome"] is not None]
+    page = report.render_site(report.build(resolved, CFG, NOW), resolved)
+    assert "Largest disagreement" in page and 'class="errs"' in page
+    assert "The answer was" in page
+
+
+def test_site_escapes_text_from_the_venues_and_the_model() -> None:
     evil = row(1, outcome=None, title='<script>alert("x")</script>', url="javascript:alert(1)")
+    evil["samples"] = [
+        {"persona": "<b>x</b>", "probability": 0.5, "rationale": "<img src=x onerror=alert(1)>"}
+    ]
     page = report.render_site(report.build([evil], CFG, NOW), [evil])
-    assert "<script>" not in page and "&lt;script&gt;" in page
+    assert page.count("<script>") == 1 and "&lt;script&gt;" in page
+    assert "<img" not in page and "&lt;img" in page and "<b>x</b>" not in page
     assert "javascript:" not in page
 
 

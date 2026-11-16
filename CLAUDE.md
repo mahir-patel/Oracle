@@ -180,13 +180,23 @@ Kalshi lists latest-closing markets first.
   page has no scripts or external assets; venue text is escaped and only http(s) links are
   made clickable.
 - **`report.json` carries `generated_at`**, so the daily run always has something to commit.
-- **The page's look follows the user's `apple-design` skill** (2026-11-16, CSS only: system
-  font, size-specific tracking, rem spacing, cards, light/dark, reduced-motion and
-  high-contrast rules, press feedback on links). Content and markup are unchanged apart from
-  a card around the plot. Still no scripts or external assets.
-- **The page has a five-step "How it works" diagram** (2026-11-16, user request):
-  `report.STEPS`, an ordered list laid out as cards with arrows, a row on wide screens and a
-  column on phones. Keep its wording true to the pipeline if the pipeline changes.
+- **The page was redesigned on 2026-11-16** (user request, `design-taste-frontend` skill;
+  replaces the earlier `apple-design` CSS pass and the static five-card diagram). Four tabs
+  (Overview, How it works, Forecasts, Verify) driven by one small inline script; with scripts
+  off all four show stacked. Still one file with no external requests (a test checks this).
+  - "How it works" walks ONE real ledger entry through the five steps (`report.STAGES`,
+    `_stage_visual`); the entry is the open forecast furthest from the market (`_featured`).
+    Keep the wording true to the pipeline if the pipeline changes.
+  - The Forecasts tab publishes every sample's rationale. That text comes from the model
+    after reading the web, so it is escaped everywhere (`_esc`); never insert it raw.
+  - Design rules followed: one accent (emerald), no long dashes anywhere on the page (a test
+    checks), light and dark from the system setting, motion off under reduced-motion. No
+    images: the page must be one file, so the visuals are drawn from ledger data.
+  - Page size grows with the ledger: about 2.7 KB per forecast (roughly 0.8 MB at 300).
+- **Seen while building the page (for the first weekly review):** several rationales in the
+  first live run say "search tool failed" or "hit its limit" (for example the Taichung mayor
+  forecast, where Oracle is at 53% against a market at 23%). The search-budget line did not
+  fully fix it. Look at the reply blocks before trusting large gaps.
 - **Not built, could be asked for:** a test workflow on push (the spec lists only
   `daily.yml`); a filter for markets that are already decided (see the Haiku live check).
 
