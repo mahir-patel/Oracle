@@ -9,7 +9,13 @@ from forecaster.calibrate import Calibrator
 from forecaster.config import Config
 from forecaster.ledger import Ledger
 from forecaster.models import Question, Sample
-from forecaster.pipeline import Params, forecast_question, select_questions
+from forecaster.pipeline import (
+    Params,
+    forecast_question,
+    pick_daily,
+    quotas,
+    select_questions,
+)
 
 CFG = Config()
 NOW = datetime(2026, 8, 1, tzinfo=UTC)
@@ -198,3 +204,88 @@ def test_select_rejects(overrides: dict[str, object]) -> None:
 )
 def test_select_boundaries_are_inclusive(overrides: dict[str, object]) -> None:
     assert len(select_questions([make_question(**overrides)], NOW, CFG)) == 1
+
+
+# ---------- pick_daily ----------
+
+
+def band_questions(short: int, mid: int, long: int, events: bool = True) -> list[Question]:
+    out = []
+    for name, count, days in (("s", short, 5), ("m", mid, 20), ("l", long, 45)):
+        for i in range(count):
+            out.append(
+                make_question(
+                    f"{name}{i}",
+                    close_time=NOW + timedelta(days=days),
+                    event_id=f"ev-{name}{i}" if events else "",
+                )
+            )
+    return out
+
+
+def test_quotas_split_by_share() -> None:
+    shares = [0.5, 0.3, 0.2]
+    assert quotas(10, shares) == [5, 3, 2]
+    assert quotas(5, shares) == [3, 1, 1]
+    assert quotas(1, shares) == [1, 0, 0]
+    assert quotas(0, shares) == [0, 0, 0]
+    assert all(sum(quotas(n, shares)) == n for n in range(40))
+
+
+def test_pick_daily_fills_the_quotas(tmp_path: Path) -> None:
+    picked, counts = pick_daily(band_questions(20, 20, 20), Ledger(tmp_path / "l"), 10, NOW, CFG)
+    assert [(c.eligible, c.quota, c.picked) for c in counts] == [(20, 5, 5), (20, 3, 3), (20, 2, 2)]
+    assert [q.market_id[0] for q in picked] == list("sssssmmmll")
+
+
+def test_pick_daily_redistributes_unfilled_slots_shortest_first(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "l")
+    # The long band is empty: its 2 slots go to the short band.
+    _, counts = pick_daily(band_questions(20, 20, 0), ledger, 10, NOW, CFG)
+    assert [c.picked for c in counts] == [7, 3, 0]
+    # The short band has 1: its 4 spare slots go to the medium band first.
+    _, counts = pick_daily(band_questions(1, 20, 20), ledger, 10, NOW, CFG)
+    assert [c.picked for c in counts] == [1, 7, 2]
+    # Not enough anywhere: take everything there is.
+    picked, counts = pick_daily(band_questions(1, 2, 3), ledger, 10, NOW, CFG)
+    assert [c.picked for c in counts] == [1, 2, 3] and len(picked) == 6
+
+
+def test_pick_daily_takes_one_market_per_event(tmp_path: Path) -> None:
+    questions = [
+        make_question(f"m{i}", close_time=NOW + timedelta(days=5), event_id="fed-december")
+        for i in range(5)
+    ]
+    questions.append(make_question("other", close_time=NOW + timedelta(days=5), event_id="x"))
+    # A different venue with the same event id is a different event.
+    questions.append(
+        make_question("k", venue="kalshi", close_time=NOW + timedelta(days=5), event_id="x")
+    )
+    picked, counts = pick_daily(questions, Ledger(tmp_path / "l"), 10, NOW, CFG)
+    assert len(picked) == 3 and counts[0].eligible == 3
+    assert len({(q.venue, q.event_id) for q in picked}) == 3
+    # Markets with no known event are each their own event.
+    picked, _ = pick_daily(band_questions(4, 0, 0, events=False), Ledger(tmp_path / "l"), 10, NOW, CFG)
+    assert len(picked) == 4
+
+
+def test_pick_daily_skips_markets_and_events_already_in_the_ledger(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "ledger.jsonl")
+    done = make_question("done", close_time=NOW + timedelta(days=5), event_id="ev-done")
+    forecast = forecast_question(done, FakeAgent(lambda _: 0.5), Calibrator(), Params(1, 0), NOW, CFG)
+    assert forecast is not None
+    ledger.append_forecast(forecast)
+    sibling = make_question("sibling", close_time=NOW + timedelta(days=5), event_id="ev-done")
+    fresh = make_question("fresh", close_time=NOW + timedelta(days=5), event_id="ev-new")
+    picked, _ = pick_daily([done, sibling, fresh], ledger, 10, NOW, CFG)
+    assert [q.market_id for q in picked] == ["fresh"]
+
+
+def test_pick_daily_is_fixed_by_the_date_not_the_input_order(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "l")
+    questions = band_questions(30, 30, 30)
+    a, _ = pick_daily(questions, ledger, 10, NOW, CFG)
+    b, _ = pick_daily(list(reversed(questions)), ledger, 10, NOW + timedelta(hours=5), CFG)
+    c, _ = pick_daily(questions, ledger, 10, NOW + timedelta(days=1), CFG)
+    assert [q.market_id for q in a] == [q.market_id for q in b]
+    assert [q.market_id for q in a] != [q.market_id for q in c]

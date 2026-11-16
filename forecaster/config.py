@@ -59,6 +59,10 @@ class Config:
     cache_read_multiplier: float = 0.1
     price_per_search: float = 0.01  # $10 per 1,000 searches; failed searches are free
     max_spend_per_run: float = 1.0
+    # The whole project's budget. Checked before each run against the ledger's
+    # total cost plus what was spent before the ledger existed (live checks).
+    max_spend_total: float = 50.0
+    spent_before_ledger: float = 6.10
     first_question_cost_estimate: float = 0.20
 
     # --- aggregation (priors, replaced by fitted values in params.json) ---
@@ -82,6 +86,10 @@ class Config:
     max_spread: float = 0.10
     min_mid: float = 0.03
     max_mid: float = 0.97
+    # Daily pick (SPEC 6.9): close-time bands in days, and each band's share of
+    # the day's questions. One more edge than shares.
+    band_days: str = "1,14,30,60"
+    band_shares: str = "0.5,0.3,0.2"
 
     # --- refit ---
     min_refit_rows: int = 30
