@@ -5,12 +5,11 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S4 built, not tagged. Model switched to Haiku 5.5 on 2026-11-13** (user decision: the
-project is a portfolio piece with a **total budget of 50 USD**, about 5.75 already spent on
-the Fable 5.2 live checks; see Findings). Waiting for the user to run the live check on the
-new settings: `.venv/bin/python scripts/live_check.py` (3 questions, expected well under
-$1). Then: read cost, latency, parse rate, stop reasons and the reply blocks, adjust, record
-the numbers under Findings, tag `s4`.
+**S4 done and tagged (2026-11-15).** Model is Haiku 5.5 (user decision: portfolio piece,
+**total budget 50 USD**, about 6.10 spent so far on live checks). The live check on Haiku
+passed: $0.11 per question, 14 of 15 samples parsed (see Findings). Two adjustments made
+from it are NOT yet run live: 3 searches and 8,000 tokens per sample, and a search-budget
+line in the user message. Waiting for the user to say "next" before S5.
 
 S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
@@ -156,8 +155,8 @@ Kalshi lists latest-closing markets first.
   `ORACLE_SEARCH_ALLOWED_CALLERS=direct`.
 - **Per-run cap is now $1; S5 must add `MAX_SPEND_TOTAL` = 50**, checked against the sum of
   `cost_usd` in the ledger before each run, and pick about 5 questions a day.
-- **Still open from the Fable run:** searches failing "on a tool limit". Check the reply
-  blocks in the next run.
+- **Searches failing "on a tool limit"** was `max_uses` being exceeded by parallel searches
+  from code (see the Haiku live check). The user message now states the budget.
 
 ## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
@@ -310,6 +309,38 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 - **Where this leaves cost:** about $5.50 a question as specified; $2.75 with the Batch API.
   The $0.10-0.50 target is not reachable with 5 searching Fable samples.
 
+### S4 live check on Haiku 5.5 (2026-11-15): the gate run
+
+3 questions x 5 samples, 2 searches per sample, `max_tokens` 4000, adaptive thinking.
+
+| question | samples | raw / final / market | cost | latency | searches |
+|---|---|---|---|---|---|
+| Kalshi: Dems win >= 46 Trump-carried House seats | 0.95 0.95 0.04 0.97 (1 lost) | 0.824 / 0.940 / 0.970 | $0.127 | 42 s | 10 |
+| Polymarket: Bitcoin reaches $70,000 in November | 0.28 0.30 0.36 0.35 0.27 | 0.309 / 0.301 / 0.345 | $0.123 | 20 s | 10 |
+| Polymarket: Bournemouth win on 2026-11-21 | 0.40 0.43 0.42 0.47 0.43 | 0.427 / 0.450 / 0.495 | $0.084 | 13 s | 7 |
+
+- **Total $0.335, about $0.11 per question** (567,082 input tokens of which roughly a third
+  cached, 36,264 output, 27 searches = $0.27 of the cost). No request came near the
+  100,000-token price tier (largest 67,164). No paper bet: all edges under 0.04.
+- **Parse rate 14 / 15.** The one failure stopped at `max_tokens` while still thinking after
+  its searches (4,703 output tokens). Fixed: `MAX_TOKENS` 8000.
+- **Adaptive thinking and code-driven search both work on Haiku 5.5** (35 thinking blocks, 23
+  code-execution calls, no error blocks, no API failures).
+- **One badly wrong sample:** `resolution_lawyer` on the House question said 0.04 against
+  0.95-0.97 from the others. Its reply: "My search tool hit its limit, so I could only
+  retrieve one page". The model fires several searches at once from code and those over
+  `max_uses` fail. Same symptom as the Fable run. Fixed two ways: `MAX_WEB_SEARCHES` 3, and
+  the user message now states the budget. Not yet re-run live.
+- **The trimmed mean did not remove that outlier:** with 4 samples, 20% trimming drops
+  nothing, so raw was 0.824. Working as specified; worth a look at the first weekly review.
+- One sample (`devils_advocate`, Bournemouth) was billed 0 searches although its code called
+  `web_search`: either those searches failed or code-driven searches are not always counted.
+  Watch `n_searches` against the reply blocks.
+- The House question was already decided (election on Nov 3, market at 0.97). Such
+  near-settled markets teach little; `MAX_MID` 0.97 lets them through at the edge.
+- Expected cost with 3 searches: about $0.16-0.18 per question, so the remaining budget
+  covers roughly 240-270 forecasts.
+
 ## Known issues
 
 - **Kalshi returns the latest-closing markets first.** With a 1-60 day window and scan 400,
@@ -333,5 +364,4 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 
 ## Next steps
 
-1. S4 gate: the user runs `scripts/live_check.py` on Haiku 5.5; adjust from the result; tag `s4`.
-2. S5: `cli.py` (with the budget guard and `pick_daily`), `report.py`, Pages site, workflow.
+1. S5 (after the user says "next"): `cli.py` (with the budget guard and `pick_daily`), `report.py`, Pages site, workflow.
