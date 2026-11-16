@@ -133,6 +133,7 @@ def kalshi_to_question(m: Raw) -> Question | None:
         liquidity=liquidity,
         url=f"https://kalshi.com/markets/{m.get('event_ticker', m['ticker'])}",
         fee_rate=None,  # standard taker rate; see sizing.DEFAULT_FEE_RATE
+        event_id=str(m.get("event_ticker") or ""),
     )
 
 
@@ -200,6 +201,14 @@ def _json_list(value: Any) -> list[Any] | None:
     return parsed if isinstance(parsed, list) else None
 
 
+def _polymarket_event_id(m: Raw) -> str:
+    """``events[0].id``; empty when the market lists no event."""
+    events = m.get("events")
+    if isinstance(events, list) and events and isinstance(events[0], dict):
+        return str(events[0].get("id") or "")
+    return ""
+
+
 def polymarket_to_question(m: Raw) -> Question | None:
     """Map one Polymarket market. Returns None unless it is a plain Yes/No market."""
     close_time = _parse_time(m.get("endDate"))
@@ -237,6 +246,7 @@ def polymarket_to_question(m: Raw) -> Question | None:
         liquidity=liquidity,
         url=f"https://polymarket.com/market/{m.get('slug', '')}",
         fee_rate=fee_rate,
+        event_id=_polymarket_event_id(m),
     )
 
 

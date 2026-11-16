@@ -27,6 +27,9 @@ class Question:
     # Taker fee coefficient for this market (fee = rate * contracts * P * (1 - P)).
     # None means "use the venue's default"; see sizing.py.
     fee_rate: float | None = None
+    # The venue's event this market belongs to (several markets can share one).
+    # Empty if unknown. Used to forecast at most one market per event.
+    event_id: str = ""
 
     def __post_init__(self) -> None:
         self.close_time = ensure_utc(self.close_time)

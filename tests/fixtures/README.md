@@ -11,6 +11,7 @@ Real responses from the venues' public read-only APIs, recorded 2026-11-10/11 (U
 - `polymarket_market_{yes,no,open}.json`: `GET /markets/{id}`.
 
 Trimmed, values untouched: bulky fields the client never reads were removed (Kalshi
-`custom_strike`, `price_ranges`, `mve_selected_legs`; Polymarket images, `events`, reward and
-token-id fields). Disputed / malformed cases are built inside the tests by editing a copy of a
+`custom_strike`, `price_ranges`, `mve_selected_legs`; Polymarket images, reward and token-id
+fields; `events` is kept, trimmed to id, ticker, slug and title, on the two markets the list
+endpoint still returned on 2026-11-15). Disputed / malformed cases are built inside the tests by editing a copy of a
 real fixture, so every file here is genuine data.

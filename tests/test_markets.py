@@ -47,6 +47,7 @@ def test_kalshi_mapping() -> None:
     assert q.url.startswith("https://kalshi.com/markets/KXVENUEPERFORMANCEYE-")
     assert q.category == "other"  # the markets endpoint carries no category
     assert q.fee_rate is None
+    assert q.event_id == "KXVENUEPERFORMANCEYE-27JAN01"
 
 
 def test_kalshi_rules_join_primary_and_secondary() -> None:
@@ -205,6 +206,9 @@ def test_polymarket_mapping() -> None:
     assert q.url == "https://polymarket.com/market/" + poly_list()[0]["slug"]
     assert q.category == "economics"  # from feeType "economics_fees"
     assert q.fee_rate == 0.05
+    assert q.event_id == "770450"  # events[0].id
+    no_event = markets.polymarket_to_question({**poly_list()[0], "events": []})
+    assert no_event is not None and no_event.event_id == ""
 
 
 def test_polymarket_fee_rate_per_market() -> None:
