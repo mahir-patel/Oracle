@@ -26,8 +26,12 @@ class Config:
     # they are excluded from scoring, fitting and the public record (rule 1).
     model_cutoff: datetime = datetime(2026, 7, 1, tzinfo=UTC)
     n_samples: int = 5
-    max_web_searches: int = 2  # search fees are most of the cost on Haiku
-    max_tokens: int = 4000  # per sample; covers thinking, search code and the reply
+    # Search fees are most of the cost on Haiku. With 2, a sample that spent both
+    # on one thin page forecast 0.04 where the others said 0.95 (live check).
+    max_web_searches: int = 3
+    # Covers thinking, search code and the reply. At 4000 one live sample in 15
+    # was cut off while still thinking; output is cheap on Haiku.
+    max_tokens: int = 8000
     # Server-side web search tool version (checked against the docs 2026-11-11).
     web_search_tool: str = "web_search_20260318"
     # Comma-separated domains the search may not return. The venues' own pages

@@ -12,10 +12,10 @@ def test_defaults_match_spec() -> None:
     assert (c.thinking, c.search_allowed_callers) == ("adaptive", "")
     assert c.model_cutoff == datetime(2026, 7, 1, tzinfo=UTC)
     assert c.n_samples == 5
-    assert c.max_web_searches == 2
+    assert c.max_web_searches == 3
     assert (c.price_in, c.price_out, c.price_per_search) == (0.10, 0.50, 0.01)
     assert (c.long_prompt_tokens, c.price_in_long, c.price_out_long) == (100_000, 0.50, 2.50)
-    assert c.max_tokens == 4000
+    assert c.max_tokens == 8000
     assert (c.cache_write_multiplier, c.cache_read_multiplier) == (1.25, 0.1)
     assert c.web_search_tool == "web_search_20260318"
     assert c.search_blocked_domains == "polymarket.com,kalshi.com"

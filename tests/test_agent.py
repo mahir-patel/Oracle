@@ -161,7 +161,7 @@ def test_request_follows_the_spec() -> None:
     agent.forecast(make_question(), 1, NOW)
     (call,) = client.calls
     assert call["model"] == "claude-haiku-5-5" == agent.model
-    assert call["max_tokens"] == 4000
+    assert call["max_tokens"] == 8000
     assert call["system"] == SYSTEM_PROMPT
     assert call["tools"] == [
         {

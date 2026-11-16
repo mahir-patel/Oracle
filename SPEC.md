@@ -92,10 +92,10 @@ oracle/
 | `MODEL` | `claude-haiku-5-5` (changed from `claude-fable-5-2` on 2026-11-13) | The project's total budget is 50 USD. Fable 5.2 cost about 5.50 USD per question in the live check; Haiku 5.5 is expected to cost about 0.15. The ledger records the model of every forecast, and results from different models are never pooled |
 | `MODEL_CUTOFF` | `2026-07-01` (env-overridable) | Set to the model's published training cutoff; see rule 1 |
 | `N_SAMPLES` | 5 | One per persona; balances diversity against cost |
-| `MAX_WEB_SEARCHES` | 2 per sample | On Haiku the search fee (0.01 USD each) is most of the cost |
+| `MAX_WEB_SEARCHES` | 3 per sample | On Haiku the search fee (0.01 USD each) is most of the cost; with 2, a live sample ran out after one thin page and was badly wrong |
 | `THINKING` | `adaptive` | Haiku 5.5 does not think unless asked; empty sends no thinking setting |
 | `SEARCH_ALLOWED_CALLERS` | empty (API default) | Set to `direct` if the API says the model cannot run searches from code |
-| `MAX_TOKENS` | 4000 per sample | Covers thinking, search-filtering code and the reply; a truncated reply is a parse failure |
+| `MAX_TOKENS` | 8000 per sample (4000 cut off 1 live sample in 15) | Covers thinking, search-filtering code and the reply; a truncated reply is a parse failure |
 | `WEB_SEARCH_TOOL` | `web_search_20260318` | Newest version in the Anthropic docs (checked 2026-11-11) |
 | `SEARCH_BLOCKED_DOMAINS` | `polymarket.com,kalshi.com` | The venues' own pages show the live price; see rule 2 |
 | `PRICE_IN` / `PRICE_OUT` | 0.10 / 0.50 USD per M tokens (Haiku 5.5 list price, checked 2026-11-13) | For cost tracking; update if pricing changes |
@@ -167,7 +167,7 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
 
 ### 6.3 `agent.py`
 - `Agent.forecast(q, n, now) -> list[Sample]` runs n passes in parallel (thread pool, at most 5 workers).
-- Each pass calls `messages.create` with `max_tokens=4000`, the system prompt, and the server-side web search tool: `{"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": MAX_WEB_SEARCHES, "blocked_domains": SEARCH_BLOCKED_DOMAINS}`. The version is `web_search_20260318` (docs checked 2026-11-11); it filters results in server-side code before the model reads them, at no extra charge beyond tokens. No sampling parameters are sent (current models reject them). `thinking={"type": THINKING}` is sent when `THINKING` is not empty.
+- Each pass calls `messages.create` with `max_tokens=MAX_TOKENS`, the system prompt, and the server-side web search tool: `{"type": WEB_SEARCH_TOOL, "name": "web_search", "max_uses": MAX_WEB_SEARCHES, "blocked_domains": SEARCH_BLOCKED_DOMAINS}`. The version is `web_search_20260318` (docs checked 2026-11-11); it filters results in server-side code before the model reads them, at no extra charge beyond tokens. No sampling parameters are sent (current models reject them). `thinking={"type": THINKING}` is sent when `THINKING` is not empty.
 - If the reply stops with `pause_turn`, send the paused reply back unchanged to resume it (at most 3 times); every request is billed.
 - No model fallback. A refusal or a reply cut off at `max_tokens` has no forecast block and counts as a parse failure. *Why:* a different model answering would be a different forecaster with a different training cutoff, logged under the wrong name.
 - Join the text blocks, then parse with the regex `<forecast>\s*(\{.*?\})\s*</forecast>` (DOTALL), taking the last match. Clamp the probability to [0.01, 0.99]. Drop a sample (return None) on a parse failure and count the failure.
