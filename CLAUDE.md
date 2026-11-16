@@ -1,18 +1,27 @@
 # Oracle — living memory
 
 A fresh session must be able to continue from this file plus `SPEC.md` alone.
-Updated in the last commit of every stage.
+Updated in the last commit of every stage, and after every weekly review.
 
 ## Current stage
 
-**S5 done and tagged (2026-11-16).** The `daily` workflow passed on `workflow_dispatch`
-(first 5 real forecasts in `data/ledger.jsonl`, see Findings), Pages is live at
-https://mahir-patel.github.io/Oracle/ (source: `main`, `/docs`), and the repository secret
-`ANTHROPIC_API_KEY` is set (the user says it is a new key, not the one pasted into chat).
-The workflow now runs by itself every day at 06:17 UTC. Waiting for "next" before S6.
+**The build is complete: S0-S6 are tagged (S6 on 2026-11-16).** Nothing is waiting to be
+built. The project is now in its operating phase (see "Operating rhythm").
 
-Model is Haiku 5.5 (user decision: portfolio piece, **total budget 50 USD**; 6.10 spent
-before the ledger plus the ledger's own total).
+- The `daily` workflow runs by itself at 06:17 UTC: resolve, forecast 5, report, verify,
+  commit. Pages serves `docs/` at https://mahir-patel.github.io/Oracle/.
+- Model: Haiku 5.5 (user decision: portfolio piece, **lifetime budget 50 USD**; 6.10 was
+  spent before the ledger existed, the rest is the ledger's `cost_usd` total). At about
+  $0.145 a question the budget ends around mid-January 2027 (~290 forecasts); `forecast`
+  then logs "total budget reached" and exits 0, so the workflow keeps resolving and reporting.
+- The repository secret `ANTHROPIC_API_KEY` is set by the user. A key was once pasted into
+  the chat; it was never written to any file and the user says the secret is a different key.
+- **First thing to do at the first weekly review:** read the reply blocks and rationales for
+  failed searches (see "Seen while building the page" below). It is the one known quality
+  problem in the live record.
+
+**Before pulling or committing locally, always `git pull --rebase`:** the workflow commits to
+`main` every day.
 
 S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
@@ -82,8 +91,8 @@ Kalshi lists latest-closing markets first.
 - **Simulated chronology is strict** (S2): the second half of the markets starts 3 days later,
   so every phase-1 market has resolved before the first phase-2 forecast is made.
 - **`Ledger.last_hash()` reads the file tail** (S2); appends were quadratic before.
-- **Not built yet, on purpose:** the pre-question budget guard (amendment 5) belongs to the
-  `forecast` command and is due in S5 with `cli.py`; search-fee cost tracking is due in S4.
+- The pre-question budget guard (amendment 5) and search-fee cost tracking were deferred in
+  S2 and are built (S5 and S4).
 
 - **`markets.py` field mappings follow live responses, not the spec's notes** (S3). Differences,
   all recorded in SPEC 6.1:
@@ -120,7 +129,7 @@ Kalshi lists latest-closing markets first.
   searches inside server-side code that filters results before the model reads them; no
   charge beyond tokens. Searches are counted from `usage.server_tool_use.web_search_requests`.
   $10 per 1,000 searches; a failed search is not billed.
-- **Prices are 8 / 40 USD per M tokens** (S4), not the spec's 10 / 50: Fable 5.2 is cheaper
+- **(Superseded by the Haiku switch below.) Prices were 8 / 40 USD per M tokens** (S4), not the spec's 10 / 50: Fable 5.2 is cheaper
   than 5.1. Thinking tokens are billed as output. Training data cutoff "Jun 2026", so
   `MODEL_CUTOFF` 2026-07-01 stands.
 - **The search blocks `polymarket.com` and `kalshi.com`** (S4, my addition, not in the
@@ -128,9 +137,9 @@ Kalshi lists latest-closing markets first.
   find them, which breaks rule 2. Other prediction sites are not blocked.
 - **No model fallback on refusals** (S4). The API offers one; it would log another model's
   forecast under this model's name. A refusal is a parse failure.
-- **The `Agent` sends no `effort` setting** (S4), so the API default (`high`) applies. This is
-  the first lever to try if the live cost per question is too high.
-- **`max_tokens` 4000 may be tight** (S4): it has to cover thinking, the search-filtering
+- **The `Agent` sends no `effort` setting** (S4), so the API default applies (`medium` on
+  Haiku 5.5). An unused cost lever.
+- **`max_tokens` was 4000 and proved tight; it is 8000 now** (S4): it has to cover thinking, the search-filtering
   code and the reply. Truncation shows up as `stop_reason: max_tokens` and a parse failure;
   check the stop reasons in the live run.
 - **API errors** (S4): 429, 5xx and network errors are retried (3 attempts, 2 s then 4 s,
@@ -139,7 +148,8 @@ Kalshi lists latest-closing markets first.
   propagate after writing what it has.
 - **The parser takes the last `<forecast>` block** (S4), since the reasoning may quote the
   format before the real answer.
-- **`scripts/live_check.py` is temporary** (S4): delete it in S5 once `oracle forecast` exists.
+- `scripts/live_check.py` (S4's temporary live check) was deleted in S5; `oracle forecast`
+  replaces it. `Agent(keep_transcripts=True)` still exists for debugging a single run.
 - **The installed `anthropic` SDK (2.8) uses `httpx2`, not `httpx`.** `markets.py` uses
   `httpx` directly, which is on the allowed list; tests build SDK errors without importing
   `httpx2`.
@@ -417,4 +427,8 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 
 ## Next steps
 
-1. S6 (after the user says "next"): README (the interview document) and the final pass over this file.
+1. Operate: weekly review of the worst forecasts and of failed searches; refit only at 30,
+   100, 300 and 1,000 clean resolved forecasts (`oracle refit`, then commit `data/`).
+2. Open offers the user has not taken up: a test workflow on push; a filter for markets
+   that are already decided; the roadmap in SPEC section 11 (do not build unasked).
+3. `README.md` quotes the test count (233) and the measured costs; update it if they change.
