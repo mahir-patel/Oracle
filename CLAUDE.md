@@ -5,19 +5,14 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S5 built, not tagged (2026-11-15).** `cli.py`, `report.py`, `pick_daily`, the page and
-`.github/workflows/daily.yml` are in; 230 tests pass; `oracle simulate` and `oracle report`
-work locally. The S5 gate still needs three things only the user can do:
-1. add the repository secret `ANTHROPIC_API_KEY` (GitHub: Settings > Secrets and variables >
-   Actions). **The user pasted a key into the chat on 2026-11-15; it was never written to any
-   file here, and they were told to revoke it and make a new one.**
-2. enable GitHub Pages (Settings > Pages > Deploy from a branch > `main`, folder `/docs`);
-3. run the `daily` workflow once by hand (Actions > daily > Run workflow).
-Then: check the run and the page (https://mahir-patel.github.io/Oracle/), tag `s5`, push tags.
+**S5 done and tagged (2026-11-16).** The `daily` workflow passed on `workflow_dispatch`
+(first 5 real forecasts in `data/ledger.jsonl`, see Findings), Pages is live at
+https://mahir-patel.github.io/Oracle/ (source: `main`, `/docs`), and the repository secret
+`ANTHROPIC_API_KEY` is set (the user says it is a new key, not the one pasted into chat).
+The workflow now runs by itself every day at 06:17 UTC. Waiting for "next" before S6.
 
-Model is Haiku 5.5 (user decision: portfolio piece, **total budget 50 USD**, about 6.10
-spent on live checks before the ledger). The S4 adjustments (3 searches, 8,000 tokens, the
-search-budget line) get their first live run in that workflow run.
+Model is Haiku 5.5 (user decision: portfolio piece, **total budget 50 USD**; 6.10 spent
+before the ledger plus the ledger's own total).
 
 S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
@@ -185,6 +180,10 @@ Kalshi lists latest-closing markets first.
   page has no scripts or external assets; venue text is escaped and only http(s) links are
   made clickable.
 - **`report.json` carries `generated_at`**, so the daily run always has something to commit.
+- **The page's look follows the user's `apple-design` skill** (2026-11-16, CSS only: system
+  font, size-specific tracking, rem spacing, cards, light/dark, reduced-motion and
+  high-contrast rules, press feedback on links). Content and markup are unchanged apart from
+  a card around the plot. Still no scripts or external assets.
 - **Not built, could be asked for:** a test workflow on push (the spec lists only
   `daily.yml`); a filter for markets that are already decided (see the Haiku live check).
 
@@ -371,6 +370,19 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 - Expected cost with 3 searches: about $0.16-0.18 per question, so the remaining budget
   covers roughly 240-270 forecasts.
 
+### S5 first workflow run (2026-11-16, GitHub Actions run 43806671201)
+
+- All steps passed: resolve (nothing due), forecast, report, verify, commit `593d335`.
+- Fetch per band worked: 1-14 days gave 96 Kalshi + 170 Polymarket selected; 135 / 157 / 186
+  eligible events in the three bands; picked 3 / 1 / 1.
+- **5 forecasts, $0.725 = $0.145 each**, 25 of 25 samples parsed, mean latency 18 s, mean
+  12.8 searches per question (cap is 15). First live run of 3 searches, 8,000 tokens and the
+  search-budget line: no parse failure, no truncation.
+- Paper bets on 3 of 5 (Warsaw temperature NO, Taichung mayor YES, Houthi shipping NO). The
+  Taichung forecast is 0.53 against a market at 0.23, the largest gap; worth reading its
+  rationale at the first weekly review.
+- At $0.145 a question and 5 a day the remaining budget lasts about 58 days (~290 forecasts).
+
 ## Known issues
 
 - Kalshi returns the latest-closing markets first; `forecast` fetches once per close-time
@@ -392,5 +404,4 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 
 ## Next steps
 
-1. S5 gate: secret, Pages, one manual workflow run (see Current stage); then tag `s5`.
-2. S6: README (the interview document) and the final pass over this file.
+1. S6 (after the user says "next"): README (the interview document) and the final pass over this file.
