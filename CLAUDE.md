@@ -184,6 +184,9 @@ Kalshi lists latest-closing markets first.
   font, size-specific tracking, rem spacing, cards, light/dark, reduced-motion and
   high-contrast rules, press feedback on links). Content and markup are unchanged apart from
   a card around the plot. Still no scripts or external assets.
+- **The page has a five-step "How it works" diagram** (2026-11-16, user request):
+  `report.STEPS`, an ordered list laid out as cards with arrows, a row on wide screens and a
+  column on phones. Keep its wording true to the pipeline if the pipeline changes.
 - **Not built, could be asked for:** a test workflow on push (the spec lists only
   `daily.yml`); a filter for markets that are already decided (see the Haiku live check).
 

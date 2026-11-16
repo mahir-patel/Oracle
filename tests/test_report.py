@@ -109,6 +109,10 @@ def test_site_lists_open_forecasts_and_is_self_contained() -> None:
     assert "Question 2?" not in page  # resolved, so not in the open table
     assert "<svg" in page and "<circle" in page
     assert "oracle verify" in page and "data/ledger.jsonl" in page
+    # The plain-words pipeline: five steps in order.
+    assert page.count("<li><b>") == 5
+    order = [page.index(f"<b>{s}</b>") for s in ("Pick", "Research", "Combine", "Record", "Score")]
+    assert order == sorted(order)
     assert "Not financial advice" in page
     assert 'name="viewport"' in page
     # No scripts and nothing loaded from elsewhere.

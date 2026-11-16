@@ -258,6 +258,7 @@ Procedure:
 - `write_site(report, rows)` → `docs/index.html`. One self-contained, mobile-friendly page with no external assets. It includes:
   - the headline BSS with CI and n (or "not enough resolved questions yet");
   - resolved and open counts, paper P&L and total API cost;
+  - a "how it works" diagram for a general reader: five numbered steps (pick, research, combine, record, score), plain HTML and CSS (added 2026-11-16 at the user's request);
   - a calibration plot as inline SVG (dot size by n, plus a diagonal reference line);
   - a table of open forecasts (title linked to the market, Oracle %, market %, close date, first 10 characters of the ledger hash);
   - a "how to verify" note pointing to `data/ledger.jsonl` and `oracle verify`;

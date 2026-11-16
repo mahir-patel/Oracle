@@ -200,6 +200,20 @@ svg{max-width:26rem;width:100%;height:auto;display:block;margin:0 auto}
 svg text{fill:var(--muted);font:11px -apple-system,system-ui,sans-serif}
 footer{margin-top:4rem;color:var(--muted);font-size:.8125rem;border-top:1px solid var(--line);
 padding-top:1rem}
+.flow{list-style:none;margin:1rem 0 0;padding:0;display:grid;gap:1.75rem;counter-reset:step}
+.flow li{position:relative;background:var(--card);border-radius:1.125rem;padding:1.125rem 1.25rem;
+counter-increment:step}
+.flow li::before{content:counter(step);display:grid;place-items:center;width:1.75rem;height:1.75rem;
+border-radius:50%;background:var(--accent);color:var(--card);font-size:.875rem;font-weight:600;
+margin-bottom:.625rem}
+.flow b{display:block;font-size:1.0625rem;letter-spacing:-.01em}
+.flow span{display:block;color:var(--muted);font-size:.875rem;line-height:1.4;margin-top:.25rem}
+.flow li:not(:last-child)::after{content:"\\2193";position:absolute;left:50%;bottom:-1.5rem;
+transform:translateX(-50%);color:var(--muted);line-height:1}
+@media (min-width:56rem){.flow{grid-template-columns:repeat(5,1fr);gap:1.5rem}
+.flow li{padding:1rem}
+.flow li:not(:last-child)::after{content:"\\2192";left:auto;right:-1.25rem;bottom:auto;top:50%;
+transform:translateY(-50%)}}
 @media (prefers-reduced-motion:reduce){main{animation:none}tbody tr,a{transition:none}}
 """
 
@@ -245,6 +259,25 @@ def calibration_svg(table: Sequence[dict[str, Any]]) -> str:
         )
     parts.append("</svg>")
     return "".join(parts)
+
+
+# The pipeline in plain words, in the order it runs.
+STEPS = [
+    ("Pick", "Questions are drawn at random from Kalshi and Polymarket, fixed by the date."),
+    (
+        "Research",
+        "An AI searches the web and estimates the chance several times, "
+        "without seeing the market price.",
+    ),
+    ("Combine", "The estimates are averaged, then blended with the market price."),
+    ("Record", "The forecast is logged publicly before the outcome is known."),
+    ("Score", "Once settled, Oracle and the market are scored against what happened."),
+]
+FLOW = (
+    '<ol class="flow">'
+    + "".join(f"<li><b>{title}</b><span>{text}</span></li>" for title, text in STEPS)
+    + "</ol>"
+)
 
 
 def _pct(p: float | None) -> str:
@@ -316,6 +349,10 @@ Every forecast is logged before the outcome is known. Paper trading only.</p>
 <p class="headline">{html.escape(headline(report))}</p>
 {warning}
 <div class="tiles">{tile_html}</div>
+
+<h2>How it works</h2>
+<p class="muted">The same five steps run automatically every day.</p>
+{FLOW}
 
 <h2>Calibration</h2>
 <p class="muted">Of the questions Oracle gave about X%, how many happened? Dots on the dashed
