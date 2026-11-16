@@ -1,0 +1,64 @@
+name: daily
+
+# One run a day: look up results, forecast new questions, rebuild the report,
+# check the ledger, commit. The commit made here by GitHub, together with the
+# ledger's hash chain, is third-party proof of when each forecast was made.
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # 06:17 UTC, off the hour to avoid the scheduler's busiest minute
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install .
+
+      - name: Resolve
+        run: oracle resolve
+
+      - name: Forecast
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DAILY_MAX: ${{ vars.ORACLE_DAILY_MAX || 5 }}
+        run: oracle forecast --max "$DAILY_MAX"
+
+      # The steps below also run when Forecast failed part-way (for example an
+      # empty API account): what it logged before failing is still published.
+      - name: Report
+        if: always()
+        run: oracle report
+
+      - name: Verify
+        id: verify
+        if: always()
+        run: oracle verify
+
+      - name: Commit
+        if: always() && steps.verify.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "chore(data): daily run $(date -u +%F)"
+            git push
+          fi
