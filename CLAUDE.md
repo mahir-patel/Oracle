@@ -5,11 +5,19 @@ Updated in the last commit of every stage.
 
 ## Current stage
 
-**S4 done and tagged (2026-11-15).** Model is Haiku 5.5 (user decision: portfolio piece,
-**total budget 50 USD**, about 6.10 spent so far on live checks). The live check on Haiku
-passed: $0.11 per question, 14 of 15 samples parsed (see Findings). Two adjustments made
-from it are NOT yet run live: 3 searches and 8,000 tokens per sample, and a search-budget
-line in the user message. Waiting for the user to say "next" before S5.
+**S5 built, not tagged (2026-11-15).** `cli.py`, `report.py`, `pick_daily`, the page and
+`.github/workflows/daily.yml` are in; 230 tests pass; `oracle simulate` and `oracle report`
+work locally. The S5 gate still needs three things only the user can do:
+1. add the repository secret `ANTHROPIC_API_KEY` (GitHub: Settings > Secrets and variables >
+   Actions). **The user pasted a key into the chat on 2026-11-15; it was never written to any
+   file here, and they were told to revoke it and make a new one.**
+2. enable GitHub Pages (Settings > Pages > Deploy from a branch > `main`, folder `/docs`);
+3. run the `daily` workflow once by hand (Actions > daily > Run workflow).
+Then: check the run and the page (https://mahir-patel.github.io/Oracle/), tag `s5`, push tags.
+
+Model is Haiku 5.5 (user decision: portfolio piece, **total budget 50 USD**, about 6.10
+spent on live checks before the ledger). The S4 adjustments (3 searches, 8,000 tokens, the
+search-budget line) get their first live run in that workflow run.
 
 S3 live-fetch gate: the user ran the smoke fetch on 2026-11-11. Kalshi 400 fetched / 72
 selected; Polymarket 355 Yes/No of 400 scanned / 199 selected. Mids, liquidity, close dates,
@@ -157,6 +165,28 @@ Kalshi lists latest-closing markets first.
   `cost_usd` in the ledger before each run, and pick about 5 questions a day.
 - **Searches failing "on a tool limit"** was `max_uses` being exceeded by parallel searches
   from code (see the Haiku live check). The user message now states the budget.
+
+- **`pick_daily` takes `config` and returns `(picks, per-band counts)`** (S5). Quotas use
+  whole slots first, then largest remainders (10 -> 5/3/2, 5 -> 3/1/1). A market with no
+  `event_id` counts as its own event. The shuffle seed is `"<UTC date>:<band index>"` after
+  sorting by (venue, market_id), so the pick does not depend on fetch order.
+- **Polymarket `events` comes only from the list endpoint** (S5); `GET /markets/{id}` omits
+  it. Two list fixtures carry the real field; the single-market fixtures do not need it.
+- **Total budget** (S5): the run's cap = min(`MAX_SPEND_PER_RUN`, `MAX_SPEND_TOTAL` -
+  `SPENT_BEFORE_LEDGER` - ledger cost). Samples of a question that produced no forecast are
+  not in the ledger, so the total can understate by that question's cost (rare, cents).
+- **`forecast` appends each forecast as it is made** (S5) and exits 1 on a non-retried API
+  error; the workflow still reports, verifies and commits (`if: always()`), but never commits
+  a ledger that fails `verify`.
+- **`refit` and the daily default** (S5): `refit` uses only rows of the current `MODEL`;
+  `--max` and the workflow default are 5 a day (budget), overridable with the repository
+  variable `ORACLE_DAILY_MAX`. `refit` is manual, never in the workflow.
+- **The page's headline makes no claim below n = 200** (S5, `report.CREDIBLE_N`), and the
+  page has no scripts or external assets; venue text is escaped and only http(s) links are
+  made clickable.
+- **`report.json` carries `generated_at`**, so the daily run always has something to commit.
+- **Not built, could be asked for:** a test workflow on push (the spec lists only
+  `daily.yml`); a filter for markets that are already decided (see the Haiku live check).
 
 ## Spec amendments agreed after S0 (SPEC.md is updated to match)
 
@@ -343,10 +373,8 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 
 ## Known issues
 
-- **Kalshi returns the latest-closing markets first.** With a 1-60 day window and scan 400,
-  every market scanned closes about 58-60 days out, so feedback would take two months. Open
-  question for the user before S5: split the scan across close-time bands (e.g. 1-7, 7-30,
-  30-60 days) so the daily run favours markets that resolve soon?
+- Kalshi returns the latest-closing markets first; `forecast` fetches once per close-time
+  band to get round it (S5).
 - Kalshi's exact fee rounding wording is unconfirmed from the PDF (see "Fee schedules").
 - Kalshi series with non-standard or zero fees are charged the standard 0.07 rate.
 
@@ -364,4 +392,5 @@ Polymarket 814613 (Taiwan local elections, DPP most seats), persona `outside_vie
 
 ## Next steps
 
-1. S5 (after the user says "next"): `cli.py` (with the budget guard and `pick_daily`), `report.py`, Pages site, workflow.
+1. S5 gate: secret, Pages, one manual workflow run (see Current stage); then tag `s5`.
+2. S6: README (the interview document) and the final pass over this file.

@@ -111,7 +111,9 @@ oracle/
 | `MAX_STAKE_FRACTION` | 0.05 | Per-bet cap as a share of bankroll |
 | `BANKROLL` | 1000 | Paper bankroll; no compounding in v1 |
 | `MAX_SPEND_PER_RUN` | 1.0 | Hard dollar cap per run |
-| `MAX_SPEND_TOTAL` | 50.0 (built in S5 with the `forecast` command) | Hard cap on everything the project ever spends |
+| `MAX_SPEND_TOTAL` | 50.0 | Hard cap on everything the project ever spends |
+| `SPENT_BEFORE_LEDGER` | 6.10 | The live checks in S4, which are not in the ledger but count toward the total |
+| `BAND_DAYS` / `BAND_SHARES` | `1,14,30,60` / `0.5,0.3,0.2` | The daily pick's close-time bands and quotas (6.9) |
 | `LEDGER_PATH` etc. | `data/ledger.jsonl`, `data/params.json`, `data/calibrator.json` | |
 
 ## 6. Module specs
@@ -226,8 +228,8 @@ User message template: `Today is {now UTC}.` / `QUESTION: {title}` / `RESOLUTION
   - mid and spread both exist, and spread ≤ 0.10. Wide spreads eat the edge.
   - 0.03 ≤ mid ≤ 0.97. Near-certain markets have no room for edge.
 
-- `pick_daily(selected, ledger, max_n, today)` (agreed after S3; built in S5) chooses which selected markets are actually forecast, by four rules: quotas by time to close, one market per event, a seeded random pick, and a fetch per band. *Why:* the track record is an experiment, and its power comes from independent questions that resolve soon.
-  - **Quotas by time to close:** of `max_n`, 50% from 1–14 days, 30% from 14–30 days, 20% from 30–60 days (5 / 3 / 2 when `max_n` = 10). **Redistribution:** unfilled slots from *any* band (including 30–60 days) go to the other bands that still have eligible markets, shortest band first, so the day's total is always met whenever enough eligible markets exist across all bands. The shares are settings in `config.py`. *Why:* Kalshi lists latest-closing markets first, so an unstratified scan only ever sees markets about 60 days out.
+- `pick_daily(selected, ledger, max_n, today, config)` (agreed after S3; built in S5; returns the picks and per-band counts) chooses which selected markets are actually forecast, by four rules: quotas by time to close, one market per event, a seeded random pick, and a fetch per band. *Why:* the track record is an experiment, and its power comes from independent questions that resolve soon.
+  - **Quotas by time to close:** of `max_n`, 50% from 1–14 days, 30% from 14–30 days, 20% from 30–60 days (5 / 3 / 2 when `max_n` = 10; 3 / 1 / 1 when 5: whole slots first, then the largest remainders, shortest band first on a tie). **Redistribution:** unfilled slots from *any* band (including 30–60 days) go to the other bands that still have eligible markets, shortest band first, so the day's total is always met whenever enough eligible markets exist across all bands. The shares are settings in `config.py`. *Why:* Kalshi lists latest-closing markets first, so an unstratified scan only ever sees markets about 60 days out.
   - **One market per event:** never pick two markets with the same (`venue`, `event_id`), and skip any event that already has a forecast in the ledger. `event_id` = Kalshi `event_ticker`; Polymarket `events[0].id`. *Why:* markets of one event (five buckets of one Fed decision) resolve together; counting them as separate questions makes the bootstrap CI too narrow.
   - **Seeded random pick within each band:** shuffle with a seed derived from the UTC date, then take the quota. *Why:* a rule fixed in advance, so nobody can cherry-pick easy questions; and no bias toward the most-traded markets beyond the liquidity filter.
   - **No category is excluded up front.** Categories are cut later, with evidence (roadmap item 5).
@@ -251,7 +253,7 @@ Procedure:
 **Acceptance (robust to the seed; never hunt for a passing seed):** run n = 1200 (600/600 split) for each of the 5 fixed seeds 7, 8, 9, 10, 11. Pass if, averaged across the 5 seeds, phase-2 final Brier < phase-2 model-only Brier < market Brier, and the BSS CI lower bound on the pooled phase-2 rows (all 5 seeds, 3,000 rows) is > 0. Report the per-seed results in CLAUDE.md, including any seed that fails on its own. My prototype (n = 600, one seed) got phase-2 Brier of 0.189 for the final forecast, 0.191 for the model alone and 0.203 for the market, with BSS +0.068 (CI +0.006..+0.125); that lower bound is too close to zero to rest a single-seed test on. Also run the calibrator ablation from 6.5 and record the result in CLAUDE.md.
 
 ### 6.11 `report.py`
-- `build(rows)`: counts (total/resolved/open), total cost. Then **post-cutoff resolved rows only**: Brier for final/model-only/market, log loss, bootstrap BSS, calibration table, paper P&L and number of bets. Add the contamination check over all resolved rows.
+- `build(rows, config, now)`: counts (total/resolved/open), total cost. Then **post-cutoff resolved rows only**: Brier for final/model-only/market, log loss, bootstrap BSS, calibration table, paper P&L and number of bets. Add the contamination check over all resolved rows.
 - `to_markdown(report)`: a short console summary with a ⚠️ line if contamination is suspicious.
 - `write_site(report, rows)` → `docs/index.html`. One self-contained, mobile-friendly page with no external assets. It includes:
   - the headline BSS with CI and n (or "not enough resolved questions yet");
@@ -262,9 +264,9 @@ Procedure:
   - a "not financial advice" footer.
 
 ### 6.12 `cli.py` (`python -m forecaster.cli …`, plus an `oracle` console script)
-- `forecast --venue {kalshi,polymarket,both} --scan 400 --max 10`: fetch (once per close-time band), select, skip markets already in the ledger, `pick_daily` (6.9), forecast, log. Print one line per question plus the run's spend.
+- `forecast --venue {kalshi,polymarket,both} --scan 400 --max 5`: check the budget, fetch (once per close-time band), select, skip markets already in the ledger, `pick_daily` (6.9), forecast, log each forecast as it is made. Print one line per question plus the run's spend against its cap. The run's cap is the smaller of `MAX_SPEND_PER_RUN` and what is left of `MAX_SPEND_TOTAL` after `SPENT_BEFORE_LEDGER` plus the ledger's `cost_usd` total; with nothing left it forecasts nothing and exits 0. A failed fetch skips that venue and band. An API error that is not retried (bad key, empty account) stops the run with exit code 1; what was logged stays.
 - `resolve`: for unresolved ledger markets past their close time, look up the result and log it. A network error skips the market until the next run.
-- `refit`: needs at least 30 clean (post-cutoff) resolved rows. It fits alpha and w, writes `data/params.json`, and fits the gated calibrator.
+- `refit`: needs at least 30 clean (post-cutoff) resolved rows made by the current `MODEL` (models are never pooled); exits 1 otherwise. It fits alpha and w, writes `data/params.json`, and fits the gated calibrator.
 - `report`: writes `data/report.json` and `docs/index.html` and prints the markdown summary.
 - `verify`: exits 1 if the chain is broken.
 - `simulate --n 1200 --seed 7` (one seed; the 5-seed acceptance run lives in the test suite)
@@ -272,7 +274,7 @@ Procedure:
 ### 6.13 `.github/workflows/daily.yml`
 - Runs on a daily cron at an off-peak UTC time (avoid :00), plus `workflow_dispatch`.
 - `permissions: contents: write`; Python 3.12; install the package.
-- Steps: `resolve` → `forecast --max ${{ vars.ORACLE_DAILY_MAX || 10 }}` → `report` → `verify`.
+- Steps: `resolve` → `forecast --max ${{ vars.ORACLE_DAILY_MAX || 5 }}` → `report` → `verify`. `report`, `verify` and the commit also run when `forecast` failed part-way; nothing is committed if `verify` fails.
 - Then commit `data/` and `docs/` if they changed, with the message `chore(data): daily run YYYY-MM-DD`, and push.
 - `ANTHROPIC_API_KEY` comes from repo secrets. Add a concurrency group so runs never overlap.
 - *Why:* git commit timestamps from GitHub plus the hash chain give third-party proof of when each forecast was made.
