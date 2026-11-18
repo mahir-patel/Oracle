@@ -1,28 +1,106 @@
 {
-  "calibration": [],
+  "calibration": [
+    {
+      "hi": 0.1,
+      "lo": 0.0,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.2,
+      "lo": 0.1,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.3,
+      "lo": 0.2,
+      "mean_forecast": 0.21819283703672882,
+      "n": 1,
+      "observed": 0.0
+    },
+    {
+      "hi": 0.4,
+      "lo": 0.3,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.5,
+      "lo": 0.4,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.6,
+      "lo": 0.5,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.7,
+      "lo": 0.6,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.8,
+      "lo": 0.7,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 0.9,
+      "lo": 0.8,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    },
+    {
+      "hi": 1.0,
+      "lo": 0.9,
+      "mean_forecast": null,
+      "n": 0,
+      "observed": null
+    }
+  ],
   "contamination": {
-    "brier_post": null,
+    "brier_post": 0.0476081141341365,
     "brier_pre": null,
-    "n_post": 0,
+    "n_post": 1,
     "n_pre": 0,
     "suspicious": false
   },
-  "generated_at": "2026-11-17T16:16:13.666421+00:00",
-  "mean_cost_usd": 0.139738786,
-  "mean_latency_s": 27.310720486,
-  "mean_searches": 12.266666666666667,
+  "generated_at": "2026-11-18T03:42:23.716114+00:00",
+  "mean_cost_usd": 0.137576313,
+  "mean_latency_s": 25.97792314385,
+  "mean_searches": 12.05,
   "model_cutoff": "2026-07-01T00:00:00+00:00",
   "models": {
-    "claude-haiku-5-5": 15
+    "claude-haiku-5-5": 20
   },
-  "n_bets": 0,
-  "n_open": 15,
-  "n_resolved": 0,
-  "n_scored": 0,
-  "n_total": 15,
+  "n_bets": 1,
+  "n_open": 19,
+  "n_resolved": 1,
+  "n_scored": 1,
+  "n_total": 20,
   "parse_failures": 0,
-  "pnl_usd": 0.0,
-  "samples": 75,
-  "scores": null,
-  "total_cost_usd": 2.09608179
+  "pnl_usd": 33.026109999999996,
+  "samples": 100,
+  "scores": {
+    "brier_final": 0.0476081141341365,
+    "brier_market": 0.18062499999999998,
+    "brier_model": 0.00908861153731479,
+    "bss": null,
+    "log_loss_final": 0.24614716352241617,
+    "log_loss_market": 0.5533852381847867
+  },
+  "total_cost_usd": 2.7515262600000003
 }
