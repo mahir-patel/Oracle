@@ -78,22 +78,22 @@
     "n_pre": 0,
     "suspicious": false
   },
-  "generated_at": "2026-11-18T15:51:11.762653+00:00",
-  "mean_cost_usd": 0.1359224558,
-  "mean_latency_s": 24.5323119004,
-  "mean_searches": 11.92,
+  "generated_at": "2026-11-19T15:55:17.706172+00:00",
+  "mean_cost_usd": 0.13346047933333335,
+  "mean_latency_s": 24.129622534866666,
+  "mean_searches": 11.666666666666666,
   "model_cutoff": "2026-07-01T00:00:00+00:00",
   "models": {
-    "claude-haiku-5-5": 25
+    "claude-haiku-5-5": 30
   },
   "n_bets": 1,
-  "n_open": 24,
+  "n_open": 29,
   "n_resolved": 1,
   "n_scored": 1,
-  "n_total": 25,
+  "n_total": 30,
   "parse_failures": 0,
   "pnl_usd": 33.026109999999996,
-  "samples": 125,
+  "samples": 150,
   "scores": {
     "brier_final": 0.0476081141341365,
     "brier_market": 0.18062499999999998,
@@ -102,5 +102,5 @@
     "log_loss_final": 0.24614716352241617,
     "log_loss_market": 0.5533852381847867
   },
-  "total_cost_usd": 3.398061395
+  "total_cost_usd": 4.003814380000001
 }
