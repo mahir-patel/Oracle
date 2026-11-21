@@ -3,9 +3,9 @@
     {
       "hi": 0.1,
       "lo": 0.0,
-      "mean_forecast": null,
-      "n": 0,
-      "observed": null
+      "mean_forecast": 0.09200603273076333,
+      "n": 1,
+      "observed": 0.0
     },
     {
       "hi": 0.2,
@@ -72,35 +72,35 @@
     }
   ],
   "contamination": {
-    "brier_post": 0.0476081141341365,
+    "brier_post": 0.028036612096495397,
     "brier_pre": null,
-    "n_post": 1,
+    "n_post": 2,
     "n_pre": 0,
     "suspicious": false
   },
-  "generated_at": "2026-11-20T15:38:35.554071+00:00",
-  "mean_cost_usd": 0.13393351157142858,
-  "mean_latency_s": 23.570120867457145,
-  "mean_searches": 11.714285714285714,
+  "generated_at": "2026-11-21T14:50:28.449593+00:00",
+  "mean_cost_usd": 0.13544506212500002,
+  "mean_latency_s": 24.947053301625,
+  "mean_searches": 11.875,
   "model_cutoff": "2026-07-01T00:00:00+00:00",
   "models": {
-    "claude-haiku-5-5": 35
+    "claude-haiku-5-5": 40
   },
-  "n_bets": 1,
-  "n_open": 34,
-  "n_resolved": 1,
-  "n_scored": 1,
-  "n_total": 35,
+  "n_bets": 2,
+  "n_open": 38,
+  "n_resolved": 2,
+  "n_scored": 2,
+  "n_total": 40,
   "parse_failures": 0,
-  "pnl_usd": 33.026109999999996,
-  "samples": 175,
+  "pnl_usd": 42.069630000000004,
+  "samples": 200,
   "scores": {
-    "brier_final": 0.0476081141341365,
-    "brier_market": 0.18062499999999998,
-    "brier_model": 0.00908861153731479,
+    "brier_final": 0.028036612096495397,
+    "brier_market": 0.10392499999999999,
+    "brier_model": 0.005764165717700038,
     "bss": null,
-    "log_loss_final": 0.24614716352241617,
-    "log_loss_market": 0.5533852381847867
+    "log_loss_final": 0.17133235395097143,
+    "log_loss_market": 0.36685439615803417
   },
-  "total_cost_usd": 4.687672905
+  "total_cost_usd": 5.417802485
 }
