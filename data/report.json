@@ -10,15 +10,15 @@
     {
       "hi": 0.2,
       "lo": 0.1,
-      "mean_forecast": null,
-      "n": 0,
-      "observed": null
+      "mean_forecast": 0.12152471751927842,
+      "n": 1,
+      "observed": 0.0
     },
     {
       "hi": 0.3,
       "lo": 0.2,
-      "mean_forecast": 0.2257576581447469,
-      "n": 2,
+      "mean_forecast": 0.24552603997680236,
+      "n": 3,
       "observed": 0.0
     },
     {
@@ -31,9 +31,9 @@
     {
       "hi": 0.5,
       "lo": 0.4,
-      "mean_forecast": null,
-      "n": 0,
-      "observed": null
+      "mean_forecast": 0.43326554378946674,
+      "n": 1,
+      "observed": 1.0
     },
     {
       "hi": 0.6,
@@ -66,41 +66,41 @@
     {
       "hi": 1.0,
       "lo": 0.9,
-      "mean_forecast": null,
-      "n": 0,
-      "observed": null
+      "mean_forecast": 0.9744355317254481,
+      "n": 1,
+      "observed": 1.0
     }
   ],
   "contamination": {
-    "brier_post": 0.10944888321739162,
+    "brier_post": 0.10695825971896677,
     "brier_pre": null,
-    "n_post": 4,
+    "n_post": 8,
     "n_pre": 0,
     "suspicious": false
   },
-  "generated_at": "2026-11-22T14:45:06.892714+00:00",
-  "mean_cost_usd": 0.13356363866666668,
-  "mean_latency_s": 23.9744136544,
-  "mean_searches": 11.666666666666666,
+  "generated_at": "2026-11-23T18:29:33.296347+00:00",
+  "mean_cost_usd": 0.1334808322,
+  "mean_latency_s": 23.600020097300003,
+  "mean_searches": 11.62,
   "model_cutoff": "2026-07-01T00:00:00+00:00",
   "models": {
-    "claude-haiku-5-5": 45
+    "claude-haiku-5-5": 50
   },
-  "n_bets": 3,
-  "n_open": 41,
-  "n_resolved": 4,
-  "n_scored": 4,
-  "n_total": 45,
+  "n_bets": 5,
+  "n_open": 42,
+  "n_resolved": 8,
+  "n_scored": 8,
+  "n_total": 50,
   "parse_failures": 0,
-  "pnl_usd": 76.32651,
-  "samples": 225,
+  "pnl_usd": 28.859619999999993,
+  "samples": 250,
   "scores": {
-    "brier_final": 0.10944888321739162,
-    "brier_market": 0.19584374999999998,
-    "brier_model": 0.0728152772070567,
+    "brier_final": 0.10695825971896677,
+    "brier_market": 0.13542653124999998,
+    "brier_model": 0.11204766932197066,
     "bss": null,
-    "log_loss_final": 0.36429696328968436,
-    "log_loss_market": 0.5691642408703339
+    "log_loss_final": 0.3480771662084871,
+    "log_loss_market": 0.4153198190105274
   },
-  "total_cost_usd": 6.010363740000001
+  "total_cost_usd": 6.674041610000001
 }
