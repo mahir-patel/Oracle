@@ -3,8 +3,8 @@
     {
       "hi": 0.1,
       "lo": 0.0,
-      "mean_forecast": 0.09200603273076333,
-      "n": 1,
+      "mean_forecast": 0.07597408332742453,
+      "n": 2,
       "observed": 0.0
     },
     {
@@ -59,9 +59,9 @@
     {
       "hi": 0.9,
       "lo": 0.8,
-      "mean_forecast": null,
-      "n": 0,
-      "observed": null
+      "mean_forecast": 0.8784148151506832,
+      "n": 1,
+      "observed": 1.0
     },
     {
       "hi": 1.0,
@@ -72,41 +72,41 @@
     }
   ],
   "contamination": {
-    "brier_post": 0.09976316040946612,
+    "brier_post": 0.08466730172407305,
     "brier_pre": null,
-    "n_post": 10,
+    "n_post": 12,
     "n_pre": 0,
     "suspicious": false
   },
-  "generated_at": "2026-11-25T17:25:36.430713+00:00",
-  "mean_cost_usd": 0.13398056533333333,
-  "mean_latency_s": 22.720652820916666,
-  "mean_searches": 11.65,
+  "generated_at": "2026-11-26T17:05:59.133261+00:00",
+  "mean_cost_usd": 0.1332801993846154,
+  "mean_latency_s": 22.43767400276923,
+  "mean_searches": 11.584615384615384,
   "model_cutoff": "2026-07-01T00:00:00+00:00",
   "models": {
-    "claude-haiku-5-5": 60
+    "claude-haiku-5-5": 65
   },
   "n_bets": 7,
-  "n_open": 50,
-  "n_resolved": 10,
-  "n_scored": 10,
-  "n_total": 60,
+  "n_open": 53,
+  "n_resolved": 12,
+  "n_scored": 12,
+  "n_total": 65,
   "parse_failures": 0,
   "pnl_usd": -6.016810000000012,
-  "samples": 300,
+  "samples": 325,
   "scores": {
-    "brier_final": 0.09976316040946612,
-    "brier_market": 0.116551225,
-    "brier_model": 0.13417498097701666,
+    "brier_final": 0.08466730172407305,
+    "brier_market": 0.0980114375,
+    "brier_model": 0.11445627269669868,
     "bss": {
-      "bss": 0.14404022429222751,
-      "ci_high": 0.5508939013710876,
-      "ci_low": -0.4069841074213926,
-      "n": 10,
-      "p_beat_market": 0.754
+      "bss": 0.13614876096401451,
+      "ci_high": 0.5421597631437796,
+      "ci_low": -0.42804320991418254,
+      "n": 12,
+      "p_beat_market": 0.7442
     },
-    "log_loss_final": 0.33416767198748254,
-    "log_loss_market": 0.3761063514270584
+    "log_loss_final": 0.29442724234478573,
+    "log_loss_market": 0.3251421536727542
   },
-  "total_cost_usd": 8.03883392
+  "total_cost_usd": 8.663212960000001
 }
